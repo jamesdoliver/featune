@@ -172,6 +172,17 @@ export async function POST(request: NextRequest) {
   // 6. Create Stripe Checkout Session
   const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
+  // Helper to check if a string is a valid URL
+  const isValidUrl = (str: string | null | undefined): str is string => {
+    if (!str) return false
+    try {
+      new URL(str)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   const stripeLineItems = lineItemsData.map((item) => {
     const discountedUnitPrice = Math.round(item.price * (1 - discountPercent) * 100) // Convert to cents
 
@@ -181,7 +192,7 @@ export async function POST(request: NextRequest) {
         product_data: {
           name: item.title,
           description: `${item.licenseType === 'exclusive' ? 'Exclusive' : 'Non-Exclusive'} License`,
-          ...(item.artworkUrl ? { images: [item.artworkUrl] } : {}),
+          ...(isValidUrl(item.artworkUrl) ? { images: [item.artworkUrl] } : {}),
         },
         unit_amount: discountedUnitPrice,
       },
