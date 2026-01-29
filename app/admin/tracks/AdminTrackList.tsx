@@ -234,6 +234,12 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
                     {/* Action */}
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/admin/tracks/${track.id}/edit`}
+                          className="rounded-lg px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                        >
+                          Edit
+                        </Link>
                         {track.status === 'approved' && (
                           <button
                             onClick={() => handleRemove(track.id)}
@@ -326,25 +332,31 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
                 </div>
 
                 {/* Action row */}
-                {track.status !== 'deleted' && (
-                  <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-default pt-3">
-                    {track.status === 'approved' && (
-                      <button
-                        onClick={() => handleRemove(track.id)}
-                        disabled={removingId === track.id}
-                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {removingId === track.id ? 'Removing...' : 'Remove'}
-                      </button>
-                    )}
+                <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-default pt-3">
+                  <Link
+                    href={`/admin/tracks/${track.id}/edit`}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10"
+                  >
+                    Edit
+                  </Link>
+                  {track.status === 'approved' && (
+                    <button
+                      onClick={() => handleRemove(track.id)}
+                      disabled={removingId === track.id}
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {removingId === track.id ? 'Removing...' : 'Remove'}
+                    </button>
+                  )}
+                  {track.status !== 'deleted' && (
                     <button
                       onClick={() => setDeleteModalTrack(track)}
                       className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-text-muted/10 hover:text-text-secondary"
                     >
                       Delete
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))}
           </div>
