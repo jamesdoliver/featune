@@ -12,6 +12,17 @@ export default async function AdminAnalyticsPage() {
     redirect('/login')
   }
 
+  // Admin check
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.is_admin) {
+    redirect('/')
+  }
+
   // --- Data Fetching ---
 
   // Completed orders (for total revenue + monthly breakdown)
