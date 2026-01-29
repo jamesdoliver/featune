@@ -1,14 +1,56 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import HomeTrackGrid from './HomeTrackGrid'
+import HomepageSection from './HomepageSection'
 
-const GENRES = [
-  { name: 'Pop', slug: 'pop' },
-  { name: 'R&B', slug: 'r&b' },
-  { name: 'Hip-Hop', slug: 'hip-hop' },
-  { name: 'EDM', slug: 'edm' },
-  { name: 'Afrobeats', slug: 'afrobeats' },
-]
+interface HomepageSectionData {
+  id: string
+  section_type: 'featured' | 'genre'
+  genre: string | null
+  title: string
+  display_order: number
+}
+
+interface PinnedTrackRow {
+  position: number
+  tracks: TrackRow
+}
+
+interface TrackRow {
+  id: string
+  title: string
+  artwork_url: string | null
+  genre: string | null
+  mood: string | null
+  bpm: number | null
+  key: string | null
+  price_non_exclusive: number | null
+  price_exclusive: number | null
+  license_type: string
+  is_ai_generated: boolean
+  vocalist_type: string | null
+  preview_clip_url: string | null
+  full_preview_url: string | null
+  created_at: string
+  creators: { id: string; display_name: string } | { id: string; display_name: string }[]
+}
+
+interface TrackData {
+  id: string
+  title: string
+  artwork_url: string | null
+  genre: string | null
+  mood: string | null
+  bpm: number | null
+  key: string | null
+  price_non_exclusive: number | null
+  price_exclusive: number | null
+  license_type: string
+  is_ai_generated: boolean
+  vocalist_type: string | null
+  preview_clip_url: string | null
+  full_preview_url: string | null
+  creators: { id: string; display_name: string }
+}
 
 const STEPS = [
   {
@@ -76,34 +118,125 @@ const STEPS = [
   },
 ]
 
+// Normalize Supabase join: creators comes back as an array type even with !inner
+function normalizeCreator(track: TrackRow): TrackData {
+  const creatorsData = track.creators as
+    | { id: string; display_name: string }
+    | { id: string; display_name: string }[]
+  const creatorObj = Array.isArray(creatorsData) ? creatorsData[0] : creatorsData
+  return { ...track, creators: creatorObj }
+}
+
+// Merge pinned tracks with auto-fill tracks to produce final 4-track array
+function mergeTracksForSection(
+  pinnedTracks: { track: TrackData; position: number }[],
+  autoFillTracks: TrackData[]
+): TrackData[] {
+  const result: (TrackData | null)[] = [null, null, null, null]
+
+  // Place pinned tracks in their positions (1-indexed to 0-indexed)
+  for (const { track, position } of pinnedTracks) {
+    if (position >= 1 && position <= 4) {
+      result[position - 1] = track
+    }
+  }
+
+  // Fill remaining slots with auto-fill tracks
+  let autoFillIndex = 0
+  for (let i = 0; i < 4; i++) {
+    if (result[i] === null && autoFillIndex < autoFillTracks.length) {
+      result[i] = autoFillTracks[autoFillIndex]
+      autoFillIndex++
+    }
+  }
+
+  // Filter out any remaining nulls and return
+  return result.filter((t): t is TrackData => t !== null)
+}
+
 export default async function Home() {
   const supabase = await createClient()
 
-  const { data: rawTracks } = await supabase
-    .from('tracks')
-    .select(
-      `
-      id, title, artwork_url, genre, mood, bpm, key,
-      price_non_exclusive, price_exclusive, license_type,
-      is_ai_generated, vocalist_type, preview_clip_url, full_preview_url,
-      creators!inner(id, display_name)
-    `
-    )
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-    .limit(8)
+  // 1. Fetch active homepage sections, ordered by display_order
+  const { data: sections } = await supabase
+    .from('homepage_sections')
+    .select('id, section_type, genre, title, display_order')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true })
 
-  // Normalize Supabase join: creators comes back as an array type even with
-  // !inner. Map it to the single-object shape that ProductCard expects.
-  const tracks = (rawTracks ?? []).map((track) => {
-    const creatorsData = track.creators as unknown as
-      | { id: string; display_name: string }
-      | { id: string; display_name: string }[]
-    const creatorObj = Array.isArray(creatorsData)
-      ? creatorsData[0]
-      : creatorsData
-    return { ...track, creators: creatorObj }
-  })
+  const activeSections: HomepageSectionData[] = sections ?? []
+
+  // 2. For each section, fetch pinned tracks and auto-fill remaining slots
+  const sectionTracksMap: Map<string, TrackData[]> = new Map()
+
+  for (const section of activeSections) {
+    // Get pinned tracks for this section
+    const { data: pinnedRows } = await supabase
+      .from('homepage_section_tracks')
+      .select(
+        `
+        position,
+        tracks!inner(
+          id, title, artwork_url, genre, mood, bpm, key,
+          price_non_exclusive, price_exclusive, license_type,
+          is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, created_at,
+          creators!inner(id, display_name)
+        )
+      `
+      )
+      .eq('section_id', section.id)
+      .order('position', { ascending: true })
+
+    const pinnedTracks: { track: TrackData; position: number }[] = (
+      (pinnedRows as PinnedTrackRow[] | null) ?? []
+    ).map((row) => ({
+      track: normalizeCreator(row.tracks),
+      position: row.position,
+    }))
+
+    const pinnedIds = pinnedTracks.map((p) => p.track.id)
+    const autoFillCount = 4 - pinnedTracks.length
+
+    // Fetch auto-fill tracks (recent approved tracks not already pinned)
+    let autoFillTracks: TrackData[] = []
+    if (autoFillCount > 0) {
+      let query = supabase
+        .from('tracks')
+        .select(
+          `
+          id, title, artwork_url, genre, mood, bpm, key,
+          price_non_exclusive, price_exclusive, license_type,
+          is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, created_at,
+          creators!inner(id, display_name)
+        `
+        )
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(autoFillCount)
+
+      // Filter by genre for genre sections
+      if (section.section_type === 'genre' && section.genre) {
+        query = query.eq('genre', section.genre)
+      }
+
+      // Exclude already pinned tracks
+      if (pinnedIds.length > 0) {
+        query = query.not('id', 'in', `(${pinnedIds.join(',')})`)
+      }
+
+      const { data: autoFillRows } = await query
+      autoFillTracks = ((autoFillRows as TrackRow[] | null) ?? []).map(normalizeCreator)
+    }
+
+    // Merge pinned + auto-fill
+    const mergedTracks = mergeTracksForSection(pinnedTracks, autoFillTracks)
+    sectionTracksMap.set(section.id, mergedTracks)
+  }
+
+  // 3. Build "Browse by Genre" links from active genre sections
+  const genreSections = activeSections.filter(
+    (s) => s.section_type === 'genre' && s.genre
+  )
 
   return (
     <>
@@ -151,47 +284,44 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ===== Featured Tracks Section ===== */}
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-10 flex items-end justify-between">
-            <h2 className="text-2xl font-bold text-text-primary">
-              Fresh Releases
-            </h2>
-            <Link
-              href="/search"
-              className="text-sm font-medium text-text-secondary transition-colors hover:text-accent"
-            >
-              View All
-            </Link>
-          </div>
-
-          <HomeTrackGrid tracks={tracks} />
-        </div>
-      </section>
+      {/* ===== Homepage Sections (Featured + Genre Rows) ===== */}
+      {activeSections.map((section) => {
+        const tracks = sectionTracksMap.get(section.id) ?? []
+        return (
+          <HomepageSection
+            key={section.id}
+            title={section.title}
+            sectionType={section.section_type}
+            genre={section.genre}
+            tracks={tracks}
+          />
+        )
+      })}
 
       {/* ===== Genre Quick Links Section ===== */}
-      <section className="py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <h2 className="mb-10 text-2xl font-bold text-text-primary">
-            Browse by Genre
-          </h2>
+      {genreSections.length > 0 && (
+        <section className="py-20">
+          <div className="mx-auto max-w-7xl px-6">
+            <h2 className="mb-10 text-2xl font-bold text-text-primary">
+              Browse by Genre
+            </h2>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-            {GENRES.map((genre) => (
-              <Link
-                key={genre.slug}
-                href={`/search?genre=${encodeURIComponent(genre.slug)}`}
-                className="group flex h-28 items-center justify-center rounded-xl border border-border-default bg-bg-card text-center transition-all duration-200 hover:border-accent hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
-              >
-                <span className="text-lg font-semibold text-text-primary transition-colors group-hover:text-accent">
-                  {genre.name}
-                </span>
-              </Link>
-            ))}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+              {genreSections.map((section) => (
+                <Link
+                  key={section.id}
+                  href={`/search?genre=${encodeURIComponent(section.genre!)}`}
+                  className="group flex h-28 items-center justify-center rounded-xl border border-border-default bg-bg-card text-center transition-all duration-200 hover:border-accent hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
+                >
+                  <span className="text-lg font-semibold text-text-primary transition-colors group-hover:text-accent">
+                    {section.title}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== How It Works Section ===== */}
       <section className="border-t border-border-default py-20">

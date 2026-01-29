@@ -288,7 +288,7 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
 
                 {/* Action row */}
                 {track.status === 'approved' && (
-                  <div className="mt-3 flex justify-end border-t border-border-default pt-3">
+                  <div className="mt-3 flex items-center justify-end border-t border-border-default pt-3">
                     <button
                       onClick={() => handleRemove(track.id)}
                       disabled={removingId === track.id}

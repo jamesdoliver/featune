@@ -21,6 +21,16 @@ const navItems = [
     icon: MusicIcon,
   },
   {
+    label: 'Homepage',
+    href: '/admin/homepage',
+    icon: LayoutIcon,
+  },
+  {
+    label: 'Upload',
+    href: '/admin/upload',
+    icon: UploadIcon,
+  },
+  {
     label: 'Creators',
     href: '/admin/creators',
     icon: UsersIcon,
@@ -286,6 +296,42 @@ function BarChartIcon({ className }: { className?: string }) {
       <line x1="18" y1="20" x2="18" y2="10" />
       <line x1="12" y1="20" x2="12" y2="4" />
       <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  )
+}
+
+function UploadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="16 16 12 12 8 16" />
+      <line x1="12" y1="12" x2="12" y2="21" />
+      <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3" />
+    </svg>
+  )
+}
+
+function LayoutIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="9" y1="21" x2="9" y2="9" />
     </svg>
   )
 }
