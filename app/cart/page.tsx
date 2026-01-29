@@ -266,9 +266,10 @@ function CartContent() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        setCheckoutError(
-          data.error || 'Something went wrong. Please try again.',
-        )
+        const errorMsg = data.details
+          ? `${data.error}: ${data.details}`
+          : data.error || 'Something went wrong. Please try again.'
+        setCheckoutError(errorMsg)
       }
     } catch {
       setCheckoutError('Unable to reach the server. Please try again.')
