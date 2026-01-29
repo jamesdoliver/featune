@@ -37,6 +37,11 @@ const statusStyles: Record<
     text: 'text-text-muted',
     label: 'Removed',
   },
+  deleted: {
+    bg: 'bg-bg-elevated',
+    text: 'text-text-muted',
+    label: 'Deleted',
+  },
 }
 
 const licenseLabels: Record<Track['license_type'], string> = {

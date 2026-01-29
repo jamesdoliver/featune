@@ -12,6 +12,7 @@ const FILTER_TABS = [
   { label: 'Rejected', value: 'rejected' },
   { label: 'Sold Out', value: 'sold_out' },
   { label: 'Removed', value: 'removed' },
+  { label: 'Deleted', value: 'deleted' },
 ] as const
 
 type FilterValue = (typeof FILTER_TABS)[number]['value']
@@ -22,6 +23,7 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: 'bg-error/10 text-error',
   sold_out: 'bg-text-muted/10 text-text-muted',
   removed: 'bg-text-muted/10 text-text-muted',
+  deleted: 'bg-text-muted/10 text-text-muted',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -30,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: 'Rejected',
   sold_out: 'Sold Out',
   removed: 'Removed',
+  deleted: 'Deleted',
 }
 
 function formatDate(dateStr: string): string {
@@ -53,6 +56,8 @@ function formatLicenseType(type: string | null): string {
 export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
   const [activeFilter, setActiveFilter] = useState<FilterValue>('all')
   const [removingId, setRemovingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteModalTrack, setDeleteModalTrack] = useState<AdminTrack | null>(null)
   const [localTracks, setLocalTracks] = useState<AdminTrack[]>(tracks)
 
   const filteredTracks =
@@ -82,6 +87,30 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
       alert('Network error. Please try again.')
     } finally {
       setRemovingId(null)
+    }
+  }
+
+  async function handleDelete(trackId: string) {
+    setDeletingId(trackId)
+    try {
+      const res = await fetch(`/api/admin/tracks/${trackId}/delete`, {
+        method: 'PATCH',
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        alert(body.error ?? 'Failed to delete track')
+        return
+      }
+
+      setLocalTracks((prev) =>
+        prev.map((t) => (t.id === trackId ? { ...t, status: 'deleted' } : t))
+      )
+    } catch {
+      alert('Network error. Please try again.')
+    } finally {
+      setDeletingId(null)
+      setDeleteModalTrack(null)
     }
   }
 
@@ -204,15 +233,25 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
 
                     {/* Action */}
                     <td className="px-5 py-4 text-right">
-                      {track.status === 'approved' && (
-                        <button
-                          onClick={() => handleRemove(track.id)}
-                          disabled={removingId === track.id}
-                          className="rounded-lg px-3 py-1.5 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {removingId === track.id ? 'Removing...' : 'Remove'}
-                        </button>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        {track.status === 'approved' && (
+                          <button
+                            onClick={() => handleRemove(track.id)}
+                            disabled={removingId === track.id}
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {removingId === track.id ? 'Removing...' : 'Remove'}
+                          </button>
+                        )}
+                        {track.status !== 'deleted' && (
+                          <button
+                            onClick={() => setDeleteModalTrack(track)}
+                            className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-text-muted/10 hover:text-text-secondary"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -287,14 +326,22 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
                 </div>
 
                 {/* Action row */}
-                {track.status === 'approved' && (
-                  <div className="mt-3 flex items-center justify-end border-t border-border-default pt-3">
+                {track.status !== 'deleted' && (
+                  <div className="mt-3 flex items-center justify-end gap-2 border-t border-border-default pt-3">
+                    {track.status === 'approved' && (
+                      <button
+                        onClick={() => handleRemove(track.id)}
+                        disabled={removingId === track.id}
+                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {removingId === track.id ? 'Removing...' : 'Remove'}
+                      </button>
+                    )}
                     <button
-                      onClick={() => handleRemove(track.id)}
-                      disabled={removingId === track.id}
-                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => setDeleteModalTrack(track)}
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-text-muted transition-colors hover:bg-text-muted/10 hover:text-text-secondary"
                     >
-                      {removingId === track.id ? 'Removing...' : 'Remove'}
+                      Delete
                     </button>
                   </div>
                 )}
@@ -302,6 +349,40 @@ export default function AdminTrackList({ tracks }: { tracks: AdminTrack[] }) {
             ))}
           </div>
         </>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteModalTrack && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-xl border border-border-default bg-bg-elevated p-6">
+            <h3 className="text-lg font-semibold text-text-primary">
+              Delete Track
+            </h3>
+            <p className="mt-3 text-sm text-text-secondary">
+              Are you sure you want to delete &ldquo;{deleteModalTrack.title}&rdquo;?
+            </p>
+            <p className="mt-2 text-sm text-text-muted">
+              This will hide the track from the store and creator profile.
+              Existing purchasers will retain access to their downloads.
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setDeleteModalTrack(null)}
+                disabled={deletingId === deleteModalTrack.id}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteModalTrack.id)}
+                disabled={deletingId === deleteModalTrack.id}
+                className="rounded-lg bg-error px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-error/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingId === deleteModalTrack.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

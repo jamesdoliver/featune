@@ -1,7 +1,7 @@
 export type VocalistType = 'male' | 'female'
 export type LicenseType = 'unlimited' | 'limited' | 'exclusive'
 export type OrderLicenseType = 'non_exclusive' | 'exclusive'
-export type TrackStatus = 'pending' | 'approved' | 'rejected' | 'sold_out' | 'removed'
+export type TrackStatus = 'pending' | 'approved' | 'rejected' | 'sold_out' | 'removed' | 'deleted'
 export type CreatorStatus = 'pending' | 'approved' | 'rejected'
 export type OrderStatus = 'pending' | 'completed' | 'failed'
 export type PayoutStatus = 'pending' | 'processing' | 'completed'
