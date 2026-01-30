@@ -13,6 +13,8 @@ interface Track {
   id: string
   title: string
   artwork_url: string | null
+  acapella_url: string | null
+  instrumental_url: string | null
   creators: Creator | Creator[]
 }
 
@@ -255,48 +257,77 @@ function OrderItemRow({ item }: { item: OrderItem }) {
         {formatPrice(item.price_at_purchase)}
       </span>
 
-      {/* Download button */}
-      {item.license_pdf_url ? (
-        <a
-          href={item.license_pdf_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border-default text-text-secondary transition-colors hover:border-accent hover:text-accent"
-          aria-label={`Download license for ${track?.title ?? 'track'}`}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
+      {/* Download buttons */}
+      <div className="flex shrink-0 items-center gap-1">
+        {track?.acapella_url && (
+          <a
+            href={track.acapella_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
+            aria-label={`Download acapella for ${track?.title ?? 'track'}`}
+            title="Download Acapella"
           >
-            <path
-              d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M4.66669 6.66669L8.00002 10L11.3334 6.66669"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M8 10V2"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </a>
-      ) : (
-        <div className="h-8 w-8 shrink-0" />
-      )}
+            <DownloadIcon />
+            <span className="hidden sm:inline">Acapella</span>
+          </a>
+        )}
+        {track?.instrumental_url && (
+          <a
+            href={track.instrumental_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
+            aria-label={`Download instrumental for ${track?.title ?? 'track'}`}
+            title="Download Instrumental"
+          >
+            <DownloadIcon />
+            <span className="hidden sm:inline">Stems</span>
+          </a>
+        )}
+        {item.license_pdf_url && (
+          <a
+            href={item.license_pdf_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
+            aria-label={`Download license for ${track?.title ?? 'track'}`}
+            title="Download License PDF"
+          >
+            <DownloadIcon />
+            <span className="hidden sm:inline">License</span>
+          </a>
+        )}
+      </div>
     </li>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M14 10V12.6667C14 13.0203 13.8595 13.3594 13.6095 13.6095C13.3594 13.8595 13.0203 14 12.6667 14H3.33333C2.97971 14 2.64057 13.8595 2.39052 13.6095C2.14048 13.3594 2 13.0203 2 12.6667V10"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4.66669 6.66669L8.00002 10L11.3334 6.66669"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 10V2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 

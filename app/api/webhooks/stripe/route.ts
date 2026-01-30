@@ -153,6 +153,8 @@ async function handleCheckoutSessionCompleted(
     licenseType: string
     price: number
     licensePdfUrl?: string
+    acapellaUrl?: string
+    instrumentalUrl?: string
   }> = []
 
   // Collect creator notifications to send after processing
@@ -203,7 +205,7 @@ async function handleCheckoutSessionCompleted(
       // (d) Fetch track details + increment licenses_sold
       const { data: track } = await supabase
         .from('tracks')
-        .select('id, title, licenses_sold, license_type, license_limit')
+        .select('id, title, licenses_sold, license_type, license_limit, acapella_url, instrumental_url')
         .eq('id', item.trackId)
         .single()
 
@@ -268,6 +270,8 @@ async function handleCheckoutSessionCompleted(
           licenseType: item.licenseType,
           price: item.price,
           licensePdfUrl,
+          acapellaUrl: track.acapella_url || undefined,
+          instrumentalUrl: track.instrumental_url || undefined,
         })
 
         // Prepare creator notification

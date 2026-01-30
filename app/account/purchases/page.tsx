@@ -26,7 +26,7 @@ export default async function PurchaseHistoryPage() {
       *,
       order_items(
         *,
-        tracks(id, title, artwork_url, creators!inner(id, display_name))
+        tracks(id, title, artwork_url, acapella_url, instrumental_url, creators!inner(id, display_name))
       )
     `)
     .eq('user_id', user.id)
