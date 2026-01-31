@@ -33,7 +33,7 @@ function emailWrapper(content: string): string {
           <!-- Header -->
           <tr>
             <td style="padding:32px 32px 24px;text-align:center;border-bottom:1px solid #2A2A2A;">
-              <span style="font-size:28px;font-weight:800;letter-spacing:2px;color:#FF6B00;">FEATUNE</span>
+              <span style="font-size:28px;font-weight:800;letter-spacing:2px;"><span style="color:#FFFFFF;">FEA</span><span style="color:#FF6B00;">TUNE</span></span>
             </td>
           </tr>
           <!-- Body -->
@@ -618,5 +618,162 @@ export async function sendCreatorApplicationEmail(params: CreatorApplicationEmai
     })
   } catch (error) {
     console.error('Failed to send creator application email:', error)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Creator Application Received Email (to applicant)
+// ---------------------------------------------------------------------------
+
+export interface CreatorApplicationReceivedEmailParams {
+  to: string
+  creatorName: string
+}
+
+export async function sendCreatorApplicationReceivedEmail(params: CreatorApplicationReceivedEmailParams): Promise<void> {
+  const { to, creatorName } = params
+
+  const content = `
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#FFFFFF;">We received your application!</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:#A0A0A0;">
+      Hi ${creatorName}, thanks for applying to become a FEATUNE creator.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#222222;border-radius:8px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px;">
+          <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#FFFFFF;">What happens next?</h3>
+          <ul style="margin:0;padding:0 0 0 20px;color:#A0A0A0;font-size:14px;line-height:1.8;">
+            <li>Our team will review your application</li>
+            <li>We typically respond within 2-3 business days</li>
+            <li>Once approved, you can start uploading tracks immediately</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;font-size:14px;color:#A0A0A0;text-align:center;">
+      We're excited to potentially have you on board!
+    </p>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: 'FEATUNE - We received your creator application',
+      html: emailWrapper(content),
+    })
+  } catch (error) {
+    console.error('Failed to send creator application received email:', error)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 10. Creator Approved Email (to creator)
+// ---------------------------------------------------------------------------
+
+export interface CreatorApprovedEmailParams {
+  to: string
+  creatorName: string
+}
+
+export async function sendCreatorApprovedEmail(params: CreatorApprovedEmailParams): Promise<void> {
+  const { to, creatorName } = params
+
+  const content = `
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#FFFFFF;">Welcome to FEATUNE Creators!</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:#A0A0A0;">
+      Great news, ${creatorName}! Your creator application has been approved.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#222222;border-radius:8px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px;">
+          <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#FFFFFF;">Get started:</h3>
+          <ul style="margin:0;padding:0 0 0 20px;color:#A0A0A0;font-size:14px;line-height:1.8;">
+            <li>Upload your first track from the creator dashboard</li>
+            <li>Set your pricing for non-exclusive and exclusive licenses</li>
+            <li>Earn 70% of every sale (we handle payments and delivery)</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+      <tr>
+        <td style="background-color:#FF6B00;border-radius:6px;">
+          <a href="${SITE_URL}/dashboard/upload" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;">
+            Upload Your First Track
+          </a>
+        </td>
+      </tr>
+    </table>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: 'FEATUNE - Welcome to FEATUNE Creators!',
+      html: emailWrapper(content),
+    })
+  } catch (error) {
+    console.error('Failed to send creator approved email:', error)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 11. Lead Welcome Email (newsletter signup)
+// ---------------------------------------------------------------------------
+
+export interface LeadWelcomeEmailParams {
+  to: string
+  name?: string
+}
+
+export async function sendLeadWelcomeEmail(params: LeadWelcomeEmailParams): Promise<void> {
+  const { to, name } = params
+  const greeting = name ? `Hi ${name}` : 'Hi there'
+
+  const content = `
+    <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#FFFFFF;">Welcome to FEATUNE!</h1>
+    <p style="margin:0 0 24px;font-size:14px;color:#A0A0A0;">
+      ${greeting}, thanks for subscribing to our newsletter.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#222222;border-radius:8px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px;">
+          <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:#FFFFFF;">What to expect:</h3>
+          <ul style="margin:0;padding:0 0 0 20px;color:#A0A0A0;font-size:14px;line-height:1.8;">
+            <li>New track releases and featured creators</li>
+            <li>Exclusive deals and promotions</li>
+            <li>Tips for producers and music creators</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+      <tr>
+        <td style="background-color:#FF6B00;border-radius:6px;">
+          <a href="${SITE_URL}/search" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;">
+            Browse Tracks
+          </a>
+        </td>
+      </tr>
+    </table>
+  `
+
+  try {
+    await getResend().emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: 'Welcome to FEATUNE',
+      html: emailWrapper(content),
+    })
+  } catch (error) {
+    console.error('Failed to send lead welcome email:', error)
   }
 }

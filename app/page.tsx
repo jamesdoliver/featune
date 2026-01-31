@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import HomepageSection from './HomepageSection'
+import LeadForm from '@/components/LeadForm'
 
 interface HomepageSectionData {
   id: string
@@ -322,6 +323,19 @@ export default async function Home() {
           </div>
         </section>
       )}
+
+      {/* ===== Newsletter Section ===== */}
+      <section className="py-20">
+        <div className="mx-auto max-w-3xl px-6 text-center">
+          <h2 className="mb-3 text-2xl font-bold text-text-primary">
+            Stay Updated
+          </h2>
+          <p className="mb-8 text-text-secondary">
+            Be the first to hear about new releases, featured creators, and exclusive deals.
+          </p>
+          <LeadForm source="homepage" showName />
+        </div>
+      </section>
 
       {/* ===== How It Works Section ===== */}
       <section className="border-t border-border-default py-20">

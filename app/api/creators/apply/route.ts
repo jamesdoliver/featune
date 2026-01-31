@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendCreatorApplicationEmail, sendCreatorApplicationReceivedEmail } from '@/lib/email'
 
 export async function POST(request: Request) {
   try {
@@ -137,6 +138,13 @@ export async function POST(request: Request) {
       console.error('Profile update error:', profileError)
       // Don't fail the whole request -- creator record was created
     }
+
+    // Send notification emails (non-blocking)
+    sendCreatorApplicationEmail({ creatorName: displayName.trim() }).catch(() => {})
+    sendCreatorApplicationReceivedEmail({
+      to: user.email!,
+      creatorName: displayName.trim(),
+    }).catch(() => {})
 
     return NextResponse.json(
       { message: 'Application submitted successfully' },

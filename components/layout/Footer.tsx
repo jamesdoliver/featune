@@ -1,8 +1,28 @@
 import Link from "next/link";
+import LeadForm from "@/components/LeadForm";
 
 export default function Footer() {
   return (
     <footer className="border-t border-border-default bg-bg-secondary">
+      {/* Newsletter Section */}
+      <div className="border-b border-border-default">
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-between md:text-left">
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary">
+                Stay in the loop
+              </h3>
+              <p className="mt-1 text-sm text-text-muted">
+                Get notified about new releases and exclusive deals.
+              </p>
+            </div>
+            <div className="w-full max-w-md">
+              <LeadForm source="footer" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* Brand */}

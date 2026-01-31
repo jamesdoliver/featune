@@ -392,6 +392,13 @@ export default function UploadTrackPage() {
         throw new Error(`Failed to create track: ${insertError.message}`)
       }
 
+      // Notify admin of new submission (non-blocking)
+      fetch('/api/tracks/notify-submission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackTitle: metadata.title.trim() }),
+      }).catch(() => {})
+
       setUploadProgress('')
       setSubmitSuccess(true)
     } catch (err) {
