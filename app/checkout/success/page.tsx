@@ -86,6 +86,8 @@ export default async function CheckoutSuccessPage({
           id,
           title,
           artwork_url,
+          acapella_url,
+          instrumental_url,
           creator_id,
           creators (
             id,
@@ -141,6 +143,8 @@ export default async function CheckoutSuccessPage({
       id: string
       title: string
       artwork_url: string | null
+      acapella_url: string | null
+      instrumental_url: string | null
       creator_id: string
       creators:
         | { id: string; display_name: string }
@@ -160,6 +164,8 @@ export default async function CheckoutSuccessPage({
         id: trackRaw.id,
         title: trackRaw.title,
         artwork_url: trackRaw.artwork_url,
+        acapella_url: trackRaw.acapella_url,
+        instrumental_url: trackRaw.instrumental_url,
       },
       creator: creator ?? { id: '', display_name: 'Unknown' },
     }
@@ -270,35 +276,79 @@ export default async function CheckoutSuccessPage({
                 </span>
               </div>
 
-              {/* Price and download */}
+              {/* Price and downloads */}
               <div className="flex flex-shrink-0 flex-col items-end gap-2">
                 <span className="text-sm font-semibold text-text-primary">
                   ${Number(item.price_at_purchase).toFixed(2)}
                 </span>
-                {item.license_pdf_url && (
-                  <a
-                    href={item.license_pdf_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
-                  >
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                <div className="flex flex-wrap items-center justify-end gap-1.5">
+                  {item.track.acapella_url && (
+                    <a
+                      href={`/api/downloads/${item.track.id}?type=acapella`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
                     >
-                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    License PDF
-                  </a>
-                )}
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Acapella
+                    </a>
+                  )}
+                  {item.track.instrumental_url && (
+                    <a
+                      href={`/api/downloads/${item.track.id}?type=instrumental`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      Stems
+                    </a>
+                  )}
+                  {item.license_pdf_url && (
+                    <a
+                      href={`/api/downloads/${item.track.id}?type=license`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      License
+                    </a>
+                  )}
+                </div>
               </div>
             </li>
           ))}

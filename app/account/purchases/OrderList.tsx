@@ -261,9 +261,7 @@ function OrderItemRow({ item }: { item: OrderItem }) {
       <div className="flex shrink-0 items-center gap-1">
         {track?.acapella_url && (
           <a
-            href={track.acapella_url}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/api/downloads/${track.id}?type=acapella`}
             className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
             aria-label={`Download acapella for ${track?.title ?? 'track'}`}
             title="Download Acapella"
@@ -274,9 +272,7 @@ function OrderItemRow({ item }: { item: OrderItem }) {
         )}
         {track?.instrumental_url && (
           <a
-            href={track.instrumental_url}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/api/downloads/${track.id}?type=instrumental`}
             className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
             aria-label={`Download instrumental for ${track?.title ?? 'track'}`}
             title="Download Instrumental"
@@ -285,13 +281,11 @@ function OrderItemRow({ item }: { item: OrderItem }) {
             <span className="hidden sm:inline">Stems</span>
           </a>
         )}
-        {item.license_pdf_url && (
+        {item.license_pdf_url && track && (
           <a
-            href={item.license_pdf_url}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={`/api/downloads/${track.id}?type=license`}
             className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
-            aria-label={`Download license for ${track?.title ?? 'track'}`}
+            aria-label={`Download license for ${track.title}`}
             title="Download License PDF"
           >
             <DownloadIcon />

@@ -76,9 +76,6 @@ export interface PurchaseConfirmationParams {
     creatorName: string
     licenseType: string
     price: number
-    licensePdfUrl?: string
-    acapellaUrl?: string
-    instrumentalUrl?: string
   }>
   subtotal: number
   discountPercent: number
@@ -106,38 +103,6 @@ export async function sendPurchaseConfirmation(params: PurchaseConfirmationParam
         </td>
       </tr>`
     )
-    .join('')
-
-  // Build download links for each track
-  const downloadSections = items
-    .map((item) => {
-      const links: string[] = []
-
-      if (item.acapellaUrl) {
-        links.push(`<a href="${item.acapellaUrl}" style="color:#FF6B00;text-decoration:none;font-size:13px;margin-right:16px;">Acapella (WAV)</a>`)
-      }
-      if (item.instrumentalUrl) {
-        links.push(`<a href="${item.instrumentalUrl}" style="color:#FF6B00;text-decoration:none;font-size:13px;margin-right:16px;">Stems</a>`)
-      }
-      if (item.licensePdfUrl) {
-        links.push(`<a href="${item.licensePdfUrl}" style="color:#FF6B00;text-decoration:none;font-size:13px;">License PDF</a>`)
-      }
-
-      if (links.length === 0) return ''
-
-      return `
-        <tr>
-          <td style="padding:16px;background-color:#222222;border-radius:8px;margin-bottom:8px;">
-            <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#FFFFFF;">${item.trackTitle}</p>
-            <p style="margin:0;font-size:12px;color:#666666;">by ${item.creatorName}</p>
-            <div style="margin-top:12px;">
-              ${links.join('')}
-            </div>
-          </td>
-        </tr>
-        <tr><td style="height:8px;"></td></tr>`
-    })
-    .filter(Boolean)
     .join('')
 
   const discountSection =
@@ -183,18 +148,18 @@ export async function sendPurchaseConfirmation(params: PurchaseConfirmationParam
       </tr>
     </table>
 
-    ${
-      downloadSections
-        ? `
-    <h2 style="margin:0 0 16px;font-size:16px;font-weight:600;color:#FFFFFF;">Your Downloads</h2>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-      ${downloadSections}
-    </table>`
-        : ''
-    }
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+      <tr>
+        <td style="background-color:#FF6B00;border-radius:6px;">
+          <a href="${SITE_URL}/account/purchases" style="display:inline-block;padding:12px 28px;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;">
+            Download Your Files
+          </a>
+        </td>
+      </tr>
+    </table>
 
-    <p style="margin:0;font-size:14px;color:#A0A0A0;">
-      You can access your purchases anytime from your
+    <p style="margin:0;font-size:14px;color:#A0A0A0;text-align:center;">
+      Access your acapellas, stems, and license PDFs from your
       <a href="${SITE_URL}/account/purchases" style="color:#FF6B00;text-decoration:none;">account</a>.
     </p>
   `
