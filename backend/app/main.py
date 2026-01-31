@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,12 +10,19 @@ app = FastAPI(
 )
 
 # CORS configuration
-# In production, restrict origins to the deployed frontend domain.
+# Set FRONTEND_URL environment variable in production (e.g., https://featune.com)
+frontend_url = os.getenv("FRONTEND_URL")
+
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "*",  # Allow all origins in development
 ]
+
+if frontend_url:
+    origins.append(frontend_url)
+else:
+    # Only allow all origins in development when FRONTEND_URL is not set
+    origins.append("*")
 
 app.add_middleware(
     CORSMiddleware,

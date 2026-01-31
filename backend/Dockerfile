@@ -1,19 +1,24 @@
 FROM python:3.11-slim
 
-# Install ffmpeg (required for pydub / audio processing)
+# Install system dependencies (ffmpeg for pydub, libsndfile for librosa)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ffmpeg && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install Python dependencies first (for better caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Copy application code
 COPY . .
 
-EXPOSE 8000
+# Make start script executable
+RUN chmod +x start.sh
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 10000
+
+CMD ["./start.sh"]
