@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useCartStore, type CartItem } from '@/stores/cartStore'
+import { TermsModal } from '@/components/checkout/TermsModal'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -237,6 +238,7 @@ function CartContent() {
 
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [showTermsModal, setShowTermsModal] = useState(false)
 
   // Toggle between non_exclusive and exclusive for a given item.
   // Since the cart store replaces by trackId on addItem, we simply flip the
@@ -248,7 +250,15 @@ function CartContent() {
     addItem({ ...item, licenseType: newType })
   }
 
-  const handleCheckout = async () => {
+  // Opens terms modal before checkout
+  const handleCheckoutClick = () => {
+    setCheckoutError(null)
+    setShowTermsModal(true)
+  }
+
+  // Proceed to checkout after terms are accepted
+  const handleTermsAccepted = async () => {
+    setShowTermsModal(false)
     setCheckoutLoading(true)
     setCheckoutError(null)
     try {
@@ -260,6 +270,7 @@ function CartContent() {
             trackId: item.trackId,
             licenseType: item.licenseType,
           })),
+          termsAccepted: true,
         }),
       })
       const data = await response.json()
@@ -385,7 +396,7 @@ function CartContent() {
         {/* Checkout button */}
         <button
           type="button"
-          onClick={handleCheckout}
+          onClick={handleCheckoutClick}
           disabled={checkoutLoading}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 text-base font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -417,7 +428,22 @@ function CartContent() {
             'Proceed to Checkout'
           )}
         </button>
+
+        {/* Terms note */}
+        <p className="mt-3 text-center text-xs text-text-muted">
+          By proceeding, you agree to our{' '}
+          <Link href="/terms" className="text-accent hover:underline">
+            License Terms
+          </Link>
+        </p>
       </div>
+
+      {/* Terms Modal */}
+      <TermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={handleTermsAccepted}
+      />
     </>
   )
 }

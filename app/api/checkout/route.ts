@@ -10,6 +10,7 @@ interface CartItem {
 
 interface RequestBody {
   items: CartItem[]
+  termsAccepted?: boolean
 }
 
 function calculateDiscount(itemCount: number): number {
@@ -52,6 +53,14 @@ export async function POST(request: NextRequest) {
   ) {
     return NextResponse.json(
       { error: 'Items array is required and must not be empty' },
+      { status: 400 }
+    )
+  }
+
+  // Validate terms acceptance
+  if (!body.termsAccepted) {
+    return NextResponse.json(
+      { error: 'You must accept the License Terms & Conditions to proceed' },
       { status: 400 }
     )
   }

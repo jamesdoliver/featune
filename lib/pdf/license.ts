@@ -22,14 +22,30 @@ const COLORS = {
   cardBg: rgb(0x22 / 255, 0x22 / 255, 0x22 / 255),       // #222222
 } as const
 
-const LICENSE_TERMS: Record<OrderLicenseType, string> = {
-  non_exclusive:
-    'This non-exclusive license grants you the right to use this vocal topline in one ' +
-    'commercial release. The creator retains ownership and may license this track to others.',
-  exclusive:
-    'This exclusive license grants you full exclusive rights to this vocal topline. ' +
-    'The creator will not license this track to anyone else. All rights are transferred to you.',
+// Comprehensive license terms for each license type
+const LICENSE_RIGHTS: Record<OrderLicenseType, string[]> = {
+  non_exclusive: [
+    'Use in unlimited commercial projects (music, video, games, ads, podcasts, films)',
+    'Monetization on all streaming platforms with no revenue caps',
+    'Full modification rights (pitch, chop, effects, remix)',
+    'Worldwide, perpetual usage - license never expires',
+    'No royalties owed after purchase',
+  ],
+  exclusive: [
+    'All non-exclusive rights, plus:',
+    'Sole commercial usage rights - no new licenses will be issued',
+    'Track removed from FEATUNE marketplace',
+    'Prior non-exclusive licenses remain valid for existing buyers',
+  ],
 }
+
+const LICENSE_RESTRICTIONS: string[] = [
+  'No redistribution of raw audio files',
+  'No sublicensing or transfer of license to third parties',
+  'No use for AI/ML training or voice synthesis',
+  'No use in hate speech, illegal, or defamatory content',
+  'Creator retains copyright; you receive usage rights',
+]
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
@@ -113,12 +129,12 @@ export async function generateLicensePDF(
   // -- Background --
   drawRect(page, 0, 0, width, height, COLORS.background)
 
-  const margin = 60
+  const margin = 50
   const contentWidth = width - margin * 2
   let y = height - margin
 
   // -- Header: FEATUNE branding --
-  const brandFontSize = 36
+  const brandFontSize = 32
   page.drawText('FEATUNE', {
     x: margin,
     y,
@@ -126,141 +142,202 @@ export async function generateLicensePDF(
     font: helveticaBold,
     color: COLORS.orange,
   })
-  y -= 8
+  y -= 6
 
   // Orange accent line under branding
   drawRect(page, margin, y, contentWidth, 3, COLORS.orange)
-  y -= 30
+  y -= 28
 
-  // -- Title: License Certificate --
-  const titleFontSize = 22
-  page.drawText('License Certificate', {
+  // -- Prominent buyer name --
+  const buyerNameFontSize = 20
+  page.drawText(buyerName, {
     x: margin,
     y,
-    size: titleFontSize,
+    size: buyerNameFontSize,
     font: helveticaBold,
     color: COLORS.white,
   })
-  y -= 12
+  y -= 18
 
-  // Subtitle with license type
-  const subtitleFontSize = 13
-  page.drawText(formatLicenseType(licenseType), {
+  // Buyer email below name
+  page.drawText(buyerEmail, {
     x: margin,
     y,
-    size: subtitleFontSize,
-    font: helvetica,
-    color: COLORS.orange,
-  })
-  y -= 40
-
-  // -- License details card --
-  const cardPadding = 20
-  const labelFontSize = 10
-  const valueFontSize = 12
-  const rowHeight = 38
-
-  const fields: { label: string; value: string }[] = [
-    { label: 'LICENSE ID', value: licenseId },
-    { label: 'LICENSE TYPE', value: formatLicenseType(licenseType) },
-    { label: 'TRACK', value: trackTitle },
-    { label: 'CREATOR', value: creatorName },
-    { label: 'LICENSED TO', value: `${buyerName} (${buyerEmail})` },
-    { label: 'PURCHASE DATE', value: formatDate(purchaseDate) },
-  ]
-
-  const cardHeight = fields.length * rowHeight + cardPadding * 2
-  const cardY = y - cardHeight
-
-  // Card background
-  drawRect(page, margin, cardY, contentWidth, cardHeight, COLORS.cardBg)
-
-  // Card top accent border
-  drawRect(page, margin, y, contentWidth, 2, COLORS.orange)
-
-  // Draw each field row
-  let fieldY = y - cardPadding - labelFontSize
-  for (let i = 0; i < fields.length; i++) {
-    const { label, value } = fields[i]
-
-    // Label
-    page.drawText(label, {
-      x: margin + cardPadding,
-      y: fieldY,
-      size: labelFontSize,
-      font: helveticaBold,
-      color: COLORS.muted,
-    })
-
-    // Value
-    page.drawText(value, {
-      x: margin + cardPadding,
-      y: fieldY - 16,
-      size: valueFontSize,
-      font: helvetica,
-      color: COLORS.white,
-    })
-
-    // Separator line (not after the last field)
-    if (i < fields.length - 1) {
-      drawRect(
-        page,
-        margin + cardPadding,
-        fieldY - 24,
-        contentWidth - cardPadding * 2,
-        1,
-        COLORS.border
-      )
-    }
-
-    fieldY -= rowHeight
-  }
-
-  y = cardY - 35
-
-  // -- Terms section --
-  const termsTitleFontSize = 14
-  page.drawText('Terms & Conditions', {
-    x: margin,
-    y,
-    size: termsTitleFontSize,
-    font: helveticaBold,
-    color: COLORS.white,
-  })
-  y -= 20
-
-  // Terms body text with word wrapping
-  const termsBodyFontSize = 11
-  const termsText = LICENSE_TERMS[licenseType]
-  const wrappedTerms = wrapText(
-    termsText,
-    helvetica,
-    termsBodyFontSize,
-    contentWidth
-  )
-
-  for (const line of wrappedTerms) {
-    page.drawText(line, {
-      x: margin,
-      y,
-      size: termsBodyFontSize,
-      font: helvetica,
-      color: COLORS.muted,
-    })
-    y -= 17
-  }
-
-  y -= 10
-
-  // Full terms reference
-  const referenceText =
-    'For the complete license agreement, please visit featune.com/terms'
-  page.drawText(referenceText, {
-    x: margin,
-    y,
-    size: 10,
+    size: 11,
     font: helvetica,
     color: COLORS.muted,
+  })
+  y -= 28
+
+  // -- Track identification card --
+  const trackCardPadding = 16
+  const trackCardHeight = 70
+  const trackCardY = y - trackCardHeight
+
+  drawRect(page, margin, trackCardY, contentWidth, trackCardHeight, COLORS.cardBg)
+  drawRect(page, margin, y, contentWidth, 2, COLORS.orange)
+
+  // Track title
+  page.drawText('LICENSED TRACK', {
+    x: margin + trackCardPadding,
+    y: y - 20,
+    size: 9,
+    font: helveticaBold,
+    color: COLORS.muted,
+  })
+
+  page.drawText(trackTitle, {
+    x: margin + trackCardPadding,
+    y: y - 38,
+    size: 14,
+    font: helveticaBold,
+    color: COLORS.white,
+  })
+
+  page.drawText(`by ${creatorName}`, {
+    x: margin + trackCardPadding,
+    y: y - 55,
+    size: 11,
+    font: helvetica,
+    color: COLORS.muted,
+  })
+
+  y = trackCardY - 20
+
+  // -- License details row --
+  const detailsValueFontSize = 11
+
+  // License Type
+  page.drawText('LICENSE TYPE', {
+    x: margin,
+    y,
+    size: 9,
+    font: helveticaBold,
+    color: COLORS.muted,
+  })
+  page.drawText(formatLicenseType(licenseType), {
+    x: margin,
+    y: y - 14,
+    size: detailsValueFontSize,
+    font: helveticaBold,
+    color: COLORS.orange,
+  })
+
+  // Purchase Date
+  const dateX = margin + 160
+  page.drawText('PURCHASE DATE', {
+    x: dateX,
+    y,
+    size: 9,
+    font: helveticaBold,
+    color: COLORS.muted,
+  })
+  page.drawText(formatDate(purchaseDate), {
+    x: dateX,
+    y: y - 14,
+    size: detailsValueFontSize,
+    font: helvetica,
+    color: COLORS.white,
+  })
+
+  // License ID
+  const idX = margin + 340
+  page.drawText('LICENSE ID', {
+    x: idX,
+    y,
+    size: 9,
+    font: helveticaBold,
+    color: COLORS.muted,
+  })
+  // Truncate license ID if too long
+  const displayLicenseId = licenseId.length > 20 ? licenseId.slice(0, 20) + '...' : licenseId
+  page.drawText(displayLicenseId, {
+    x: idX,
+    y: y - 14,
+    size: detailsValueFontSize,
+    font: helvetica,
+    color: COLORS.white,
+  })
+
+  y -= 45
+
+  // -- Rights section --
+  const sectionTitleFontSize = 12
+  const bulletFontSize = 10
+  const lineHeight = 15
+
+  page.drawText('YOUR RIGHTS', {
+    x: margin,
+    y,
+    size: sectionTitleFontSize,
+    font: helveticaBold,
+    color: COLORS.white,
+  })
+  y -= 18
+
+  const rights = LICENSE_RIGHTS[licenseType]
+  for (const right of rights) {
+    const bullet = right.startsWith('All ') ? '   ' : '•  '
+    const wrappedLines = wrapText(bullet + right, helvetica, bulletFontSize, contentWidth - 10)
+    for (const line of wrappedLines) {
+      page.drawText(line, {
+        x: margin,
+        y,
+        size: bulletFontSize,
+        font: helvetica,
+        color: COLORS.muted,
+      })
+      y -= lineHeight
+    }
+  }
+
+  y -= 12
+
+  // -- Restrictions section --
+  page.drawText('RESTRICTIONS', {
+    x: margin,
+    y,
+    size: sectionTitleFontSize,
+    font: helveticaBold,
+    color: COLORS.white,
+  })
+  y -= 18
+
+  for (const restriction of LICENSE_RESTRICTIONS) {
+    const wrappedLines = wrapText('•  ' + restriction, helvetica, bulletFontSize, contentWidth - 10)
+    for (const line of wrappedLines) {
+      page.drawText(line, {
+        x: margin,
+        y,
+        size: bulletFontSize,
+        font: helvetica,
+        color: COLORS.muted,
+      })
+      y -= lineHeight
+    }
+  }
+
+  y -= 15
+
+  // Full terms reference with box
+  const refBoxHeight = 40
+  const refBoxY = y - refBoxHeight
+  drawRect(page, margin, refBoxY, contentWidth, refBoxHeight, COLORS.cardBg)
+
+  page.drawText('Full license terms:', {
+    x: margin + 12,
+    y: refBoxY + 24,
+    size: 10,
+    font: helveticaBold,
+    color: COLORS.muted,
+  })
+
+  page.drawText('featune.com/terms', {
+    x: margin + 12,
+    y: refBoxY + 10,
+    size: 11,
+    font: helveticaBold,
+    color: COLORS.orange,
   })
 
   // -- Footer --
