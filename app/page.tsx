@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import HomepageSection from './HomepageSection'
 import LeadForm from '@/components/LeadForm'
+import RecommendedSection from './RecommendedSection'
+import { getRecommendations } from '@/lib/data/recommendations'
 
 interface HomepageSectionData {
   id: string
@@ -155,83 +157,108 @@ function mergeTracksForSection(
   return result.filter((t): t is TrackData => t !== null)
 }
 
+// ISR: Revalidate homepage every 5 minutes
+export const revalidate = 300
+
 export default async function Home() {
   const supabase = await createClient()
 
-  // 1. Fetch active homepage sections, ordered by display_order
-  const { data: sections } = await supabase
-    .from('homepage_sections')
-    .select('id, section_type, genre, title, display_order')
-    .eq('is_active', true)
-    .order('display_order', { ascending: true })
+  // Get user session for recommendations (fast, cached check)
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const activeSections: HomepageSectionData[] = sections ?? []
+  // 1. Fetch sections and recommendations in parallel
+  const [sectionsResult, recommendationsResult] = await Promise.all([
+    supabase
+      .from('homepage_sections')
+      .select('id, section_type, genre, title, display_order')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true }),
+    getRecommendations(supabase, user?.id ?? null),
+  ])
 
-  // 2. For each section, fetch pinned tracks and auto-fill remaining slots
-  const sectionTracksMap: Map<string, TrackData[]> = new Map()
+  const activeSections: HomepageSectionData[] = sectionsResult.data ?? []
+  const sectionIds = activeSections.map((s) => s.id)
 
-  for (const section of activeSections) {
-    // Get pinned tracks for this section
-    const { data: pinnedRows } = await supabase
-      .from('homepage_section_tracks')
-      .select(
+  // 2. Batch fetch ALL pinned tracks for ALL sections in a single query
+  const { data: allPinnedRows } = sectionIds.length > 0
+    ? await supabase
+        .from('homepage_section_tracks')
+        .select(
+          `
+          section_id,
+          position,
+          tracks!inner(
+            id, title, artwork_url, genre, mood, bpm, key,
+            price_non_exclusive, price_exclusive, license_type,
+            is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, created_at,
+            creators!inner(id, display_name)
+          )
         `
-        position,
-        tracks!inner(
-          id, title, artwork_url, genre, mood, bpm, key,
-          price_non_exclusive, price_exclusive, license_type,
-          is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, created_at,
-          creators!inner(id, display_name)
         )
-      `
-      )
-      .eq('section_id', section.id)
-      .order('position', { ascending: true })
+        .in('section_id', sectionIds)
+        .order('position', { ascending: true })
+    : { data: null }
 
-    const pinnedTracks: { track: TrackData; position: number }[] = (
-      (pinnedRows as PinnedTrackRow[] | null) ?? []
-    ).map((row) => ({
+  // Group pinned tracks by section_id
+  const pinnedBySection = new Map<string, { track: TrackData; position: number }[]>()
+  for (const row of (allPinnedRows as (PinnedTrackRow & { section_id: string })[] | null) ?? []) {
+    const sectionId = row.section_id
+    if (!pinnedBySection.has(sectionId)) {
+      pinnedBySection.set(sectionId, [])
+    }
+    pinnedBySection.get(sectionId)!.push({
       track: normalizeCreator(row.tracks),
       position: row.position,
-    }))
+    })
+  }
 
+  // 3. Build auto-fill queries for each section and run in parallel
+  const autoFillPromises = activeSections.map(async (section) => {
+    const pinnedTracks = pinnedBySection.get(section.id) ?? []
     const pinnedIds = pinnedTracks.map((p) => p.track.id)
     const autoFillCount = 4 - pinnedTracks.length
 
-    // Fetch auto-fill tracks (recent approved tracks not already pinned)
-    let autoFillTracks: TrackData[] = []
-    if (autoFillCount > 0) {
-      let query = supabase
-        .from('tracks')
-        .select(
-          `
-          id, title, artwork_url, genre, mood, bpm, key,
-          price_non_exclusive, price_exclusive, license_type,
-          is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, created_at,
-          creators!inner(id, display_name)
-        `
-        )
-        .eq('status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(autoFillCount)
-
-      // Filter by genre for genre sections
-      if (section.section_type === 'genre' && section.genre) {
-        query = query.eq('genre', section.genre)
-      }
-
-      // Exclude already pinned tracks
-      if (pinnedIds.length > 0) {
-        query = query.not('id', 'in', `(${pinnedIds.join(',')})`)
-      }
-
-      const { data: autoFillRows } = await query
-      autoFillTracks = ((autoFillRows as TrackRow[] | null) ?? []).map(normalizeCreator)
+    if (autoFillCount <= 0) {
+      return { sectionId: section.id, tracks: [] as TrackData[] }
     }
 
-    // Merge pinned + auto-fill
+    let query = supabase
+      .from('tracks')
+      .select(
+        `
+        id, title, artwork_url, genre, mood, bpm, key,
+        price_non_exclusive, price_exclusive, license_type,
+        is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, created_at,
+        creators!inner(id, display_name)
+      `
+      )
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(autoFillCount)
+
+    // Filter by genre for genre sections
+    if (section.section_type === 'genre' && section.genre) {
+      query = query.eq('genre', section.genre)
+    }
+
+    // Exclude already pinned tracks
+    if (pinnedIds.length > 0) {
+      query = query.not('id', 'in', `(${pinnedIds.join(',')})`)
+    }
+
+    const { data: autoFillRows } = await query
+    const tracks = ((autoFillRows as TrackRow[] | null) ?? []).map(normalizeCreator)
+    return { sectionId: section.id, tracks }
+  })
+
+  const autoFillResults = await Promise.all(autoFillPromises)
+
+  // 4. Merge pinned + auto-fill tracks for each section
+  const sectionTracksMap: Map<string, TrackData[]> = new Map()
+  for (const { sectionId, tracks: autoFillTracks } of autoFillResults) {
+    const pinnedTracks = pinnedBySection.get(sectionId) ?? []
     const mergedTracks = mergeTracksForSection(pinnedTracks, autoFillTracks)
-    sectionTracksMap.set(section.id, mergedTracks)
+    sectionTracksMap.set(sectionId, mergedTracks)
   }
 
   // 3. Build "Browse by Genre" links from active genre sections
@@ -243,7 +270,7 @@ export default async function Home() {
     <>
       {/* ===== Hero Section ===== */}
       <section
-        className="relative flex min-h-[70vh] flex-col items-center justify-center overflow-hidden px-6 text-center"
+        className="relative flex min-h-[60vh] flex-col items-center justify-center overflow-hidden px-4 py-12 text-center sm:min-h-[70vh] sm:px-6"
         style={{
           background:
             'radial-gradient(ellipse at 50% 0%, rgba(255,107,0,0.08) 0%, transparent 60%)',
@@ -260,30 +287,36 @@ export default async function Home() {
         />
 
         <div className="relative z-10 mx-auto max-w-4xl">
-          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
             Discover Premium{' '}
             <span className="text-accent">Vocal Toplines</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-text-secondary sm:text-xl">
+          <p className="mx-auto mt-4 max-w-2xl text-base text-text-secondary sm:mt-6 sm:text-lg md:text-xl">
             AI and human vocals for your next hit. Browse, preview, and license
             instantly.
           </p>
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <div className="mt-8 flex flex-col items-center gap-3 sm:mt-10 sm:flex-row sm:justify-center sm:gap-4">
             <Link
               href="/search"
-              className="inline-flex h-12 items-center justify-center rounded-lg bg-accent px-8 text-base font-semibold text-white transition-colors hover:bg-accent-hover"
+              className="inline-flex h-12 w-full items-center justify-center rounded-lg bg-accent px-8 text-base font-semibold text-white transition-colors hover:bg-accent-hover sm:w-auto"
             >
               Browse Tracks
             </Link>
             <Link
               href="/dashboard"
-              className="inline-flex h-12 items-center justify-center rounded-lg border border-border-default px-8 text-base font-semibold text-text-primary transition-colors hover:border-accent hover:text-accent"
+              className="inline-flex h-12 w-full items-center justify-center rounded-lg border border-border-default px-8 text-base font-semibold text-text-primary transition-colors hover:border-accent hover:text-accent sm:w-auto"
             >
               Start Selling
             </Link>
           </div>
         </div>
       </section>
+
+      {/* ===== Recommended For You (logged-in users with purchase history) ===== */}
+      <RecommendedSection
+        tracks={recommendationsResult.tracks}
+        hasHistory={recommendationsResult.hasHistory}
+      />
 
       {/* ===== Homepage Sections (Featured + Genre Rows) ===== */}
       {activeSections.map((section) => {
@@ -301,20 +334,20 @@ export default async function Home() {
 
       {/* ===== Genre Quick Links Section ===== */}
       {genreSections.length > 0 && (
-        <section className="py-20">
-          <div className="mx-auto max-w-7xl px-6">
-            <h2 className="mb-10 text-2xl font-bold text-text-primary">
+        <section className="py-12 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6">
+            <h2 className="mb-6 text-xl font-bold text-text-primary sm:mb-10 sm:text-2xl">
               Browse by Genre
             </h2>
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-5">
               {genreSections.map((section) => (
                 <Link
                   key={section.id}
                   href={`/search?genre=${encodeURIComponent(section.genre!)}`}
-                  className="group flex h-28 items-center justify-center rounded-xl border border-border-default bg-bg-card text-center transition-all duration-200 hover:border-accent hover:shadow-[0_0_20px_rgba(255,107,0,0.1)]"
+                  className="group flex h-20 items-center justify-center rounded-xl border border-border-default bg-bg-card text-center transition-all duration-200 hover:border-accent hover:shadow-[0_0_20px_rgba(255,107,0,0.1)] sm:h-28"
                 >
-                  <span className="text-lg font-semibold text-text-primary transition-colors group-hover:text-accent">
+                  <span className="text-base font-semibold text-text-primary transition-colors group-hover:text-accent sm:text-lg">
                     {section.title}
                   </span>
                 </Link>
@@ -325,12 +358,12 @@ export default async function Home() {
       )}
 
       {/* ===== Newsletter Section ===== */}
-      <section className="py-20">
-        <div className="mx-auto max-w-3xl px-6 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-text-primary">
+      <section className="py-12 sm:py-20">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+          <h2 className="mb-2 text-xl font-bold text-text-primary sm:mb-3 sm:text-2xl">
             Stay Updated
           </h2>
-          <p className="mb-8 text-text-secondary">
+          <p className="mb-6 text-sm text-text-secondary sm:mb-8 sm:text-base">
             Be the first to hear about new releases, featured creators, and exclusive deals.
           </p>
           <LeadForm source="homepage" showName />
@@ -338,22 +371,22 @@ export default async function Home() {
       </section>
 
       {/* ===== How It Works Section ===== */}
-      <section className="border-t border-border-default py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <h2 className="mb-14 text-center text-2xl font-bold text-text-primary">
+      <section className="border-t border-border-default py-12 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <h2 className="mb-8 text-center text-xl font-bold text-text-primary sm:mb-14 sm:text-2xl">
             How It Works
           </h2>
 
-          <div className="grid gap-10 md:grid-cols-3">
+          <div className="grid gap-8 sm:gap-10 md:grid-cols-3">
             {STEPS.map((step) => (
               <div key={step.number} className="flex flex-col items-center text-center">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-bg-elevated text-accent">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-bg-elevated text-accent sm:mb-5 sm:h-16 sm:w-16">
                   {step.icon}
                 </div>
                 <span className="mb-1 text-xs font-bold uppercase tracking-widest text-text-muted">
                   Step {step.number}
                 </span>
-                <h3 className="mb-2 text-xl font-bold text-text-primary">
+                <h3 className="mb-2 text-lg font-bold text-text-primary sm:text-xl">
                   {step.title}
                 </h3>
                 <p className="max-w-xs text-sm leading-relaxed text-text-secondary">

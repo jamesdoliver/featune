@@ -32,21 +32,30 @@ export function useUser(): UseUserReturn {
       return data
     }
 
-    // Get initial session
+    // Get initial session with parallel queries
     const getInitialSession = async () => {
       try {
-        const {
-          data: { user: currentUser },
-          error: userError,
-        } = await supabase.auth.getUser()
-        if (userError) throw userError
+        // Fast cached check to see if we have a session
+        const { data: { session } } = await supabase.auth.getSession()
 
-        setUser(currentUser)
-
-        if (currentUser) {
-          const profileData = await fetchProfile(currentUser.id)
-          setProfile(profileData)
+        if (!session?.user) {
+          // No session, done quickly
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+          return
         }
+
+        // We have a session - fetch user verification and profile in parallel
+        const [userResult, profileResult] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.from('profiles').select('*').eq('id', session.user.id).single(),
+        ])
+
+        if (userResult.error) throw userResult.error
+
+        setUser(userResult.data.user)
+        setProfile(profileResult.error ? null : profileResult.data)
       } catch (err) {
         setError(err instanceof Error ? err : new Error('Failed to get user'))
       } finally {

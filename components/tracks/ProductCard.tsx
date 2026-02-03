@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/stores/cartStore'
 
@@ -26,6 +27,7 @@ interface ProductCardProps {
   }
   onPlay?: () => void
   showCreator?: boolean
+  isSold?: boolean
 }
 
 function formatPrice(price: number): string {
@@ -36,6 +38,7 @@ export default function ProductCard({
   track,
   onPlay,
   showCreator = true,
+  isSold = false,
 }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem)
   const openDrawer = useCartStore((state) => state.openDrawer)
@@ -61,14 +64,22 @@ export default function ProductCard({
     <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border-default bg-bg-card transition-colors hover:border-border-hover">
       {/* Artwork area */}
       <Link href={`/track/${track.id}`} className="relative aspect-square overflow-hidden">
+        {/* Sold badge */}
+        {isSold && (
+          <div className="absolute left-2 top-2 z-10 rounded-full bg-text-muted/90 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white">
+            Sold
+          </div>
+        )}
         {track.artwork_url ? (
-          <img
+          <Image
             src={track.artwork_url}
             alt={track.title}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+            className={`object-cover transition-transform duration-300 group-hover:scale-105 ${isSold ? 'opacity-60' : ''}`}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-bg-elevated">
+          <div className={`flex h-full w-full items-center justify-center bg-bg-elevated ${isSold ? 'opacity-60' : ''}`}>
             {/* Music note icon placeholder */}
             <svg
               width="48"
@@ -183,23 +194,24 @@ export default function ProductCard({
           {track.key && <span>{track.key}</span>}
         </div>
 
-        {/* Add to cart button */}
+        {/* Add to cart button - min 44px touch target on mobile */}
         <button
           type="button"
           onClick={handleAddToCart}
-          disabled={track.price_non_exclusive == null}
-          className="flex h-7 w-7 items-center justify-center rounded-lg border border-border-default text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border-default disabled:hover:text-text-secondary"
-          aria-label={`Add ${track.title} to cart`}
+          disabled={track.price_non_exclusive == null || isSold}
+          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-default text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border-default disabled:hover:text-text-secondary sm:h-7 sm:w-7"
+          aria-label={isSold ? `${track.title} is sold` : `Add ${track.title} to cart`}
         >
           <svg
-            width="14"
-            height="14"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            className="sm:h-[14px] sm:w-[14px]"
           >
             <path d="M12 5v14M5 12h14" />
           </svg>
