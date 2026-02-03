@@ -73,6 +73,34 @@ export default async function TrackPage({
     notFound()
   }
 
+  // Fetch related tracks (same genre, prioritize same mood)
+  const { data: relatedTracksRaw } = await supabase
+    .from('tracks')
+    .select(`
+      id, title, artwork_url, genre, mood, bpm, key,
+      price_non_exclusive, price_exclusive, license_type,
+      is_ai_generated, vocalist_type, preview_clip_url, full_preview_url,
+      creators!inner(id, display_name)
+    `)
+    .eq('genre', track.genre)
+    .eq('status', 'approved')
+    .neq('id', id)
+    .order('created_at', { ascending: false })
+    .limit(8)
+
+  // Sort to prioritize same mood, then take first 4
+  const relatedTracks = (relatedTracksRaw ?? [])
+    .sort((a, b) => {
+      const aMoodMatch = a.mood === track.mood ? 0 : 1
+      const bMoodMatch = b.mood === track.mood ? 0 : 1
+      return aMoodMatch - bMoodMatch
+    })
+    .slice(0, 4)
+    .map((t) => ({
+      ...t,
+      creators: Array.isArray(t.creators) ? t.creators[0] : t.creators,
+    }))
+
   const trackData = {
     ...track,
     creators: creator as {
@@ -83,5 +111,5 @@ export default async function TrackPage({
     },
   }
 
-  return <TrackClient track={trackData} />
+  return <TrackClient track={trackData} relatedTracks={relatedTracks} />
 }

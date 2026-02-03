@@ -77,6 +77,22 @@ export async function GET(request: NextRequest) {
     query = query.ilike('title', `%${search}%`)
   }
 
+  const priceMin = searchParams.get('price_min')
+  if (priceMin) {
+    const priceMinVal = parseFloat(priceMin)
+    if (!isNaN(priceMinVal)) {
+      query = query.gte('price_non_exclusive', priceMinVal)
+    }
+  }
+
+  const priceMax = searchParams.get('price_max')
+  if (priceMax) {
+    const priceMaxVal = parseFloat(priceMax)
+    if (!isNaN(priceMaxVal)) {
+      query = query.lte('price_non_exclusive', priceMaxVal)
+    }
+  }
+
   // Apply sorting
   const sort = searchParams.get('sort') || 'newest'
   switch (sort) {

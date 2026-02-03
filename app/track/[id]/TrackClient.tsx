@@ -2,9 +2,32 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { usePlayerStore, type PlayerTrack } from '@/stores/playerStore'
 import { useCartStore } from '@/stores/cartStore'
 import WaveformDisplay from '@/components/player/WaveformDisplay'
+import ProductCard from '@/components/tracks/ProductCard'
+
+interface RelatedTrack {
+  id: string
+  title: string
+  artwork_url: string | null
+  genre: string | null
+  mood: string | null
+  bpm: number | null
+  key: string | null
+  price_non_exclusive: number | null
+  price_exclusive: number | null
+  license_type: string
+  is_ai_generated: boolean
+  vocalist_type: string | null
+  preview_clip_url: string | null
+  full_preview_url: string | null
+  creators: {
+    id: string
+    display_name: string
+  }
+}
 
 interface TrackData {
   id: string
@@ -37,6 +60,7 @@ interface TrackData {
 
 interface TrackClientProps {
   track: TrackData
+  relatedTracks?: RelatedTrack[]
 }
 
 function formatDuration(seconds: number): string {
@@ -63,7 +87,7 @@ function getLicenseLabel(track: TrackData): string {
   return ''
 }
 
-export default function TrackClient({ track }: TrackClientProps) {
+export default function TrackClient({ track, relatedTracks = [] }: TrackClientProps) {
   const [lyricsExpanded, setLyricsExpanded] = useState(false)
 
   const play = usePlayerStore((state) => state.play)
@@ -91,15 +115,41 @@ export default function TrackClient({ track }: TrackClientProps) {
     }
   }
 
+  const cartItems = useCartStore((state) => state.items)
   const addItem = useCartStore((state) => state.addItem)
   const openDrawer = useCartStore((state) => state.openDrawer)
 
   const handleAddToCart = (licenseType: 'non_exclusive' | 'exclusive') => {
+    // Check if limited license is sold out
+    if (
+      track.license_type === 'limited' &&
+      track.license_limit != null &&
+      track.licenses_sold >= track.license_limit
+    ) {
+      toast.error('This track is sold out')
+      return
+    }
+
     const price =
       licenseType === 'exclusive'
         ? track.price_exclusive
         : track.price_non_exclusive
     if (price == null) return
+
+    // Check if track is already in cart with a different license type
+    const existingItem = cartItems.find((item) => item.trackId === track.id)
+    if (existingItem && existingItem.licenseType !== licenseType) {
+      const oldType = existingItem.licenseType === 'exclusive' ? 'Exclusive' : 'Non-Exclusive'
+      const newType = licenseType === 'exclusive' ? 'Exclusive' : 'Non-Exclusive'
+      toast.info(`Replaced ${oldType} with ${newType} license`)
+    } else if (existingItem) {
+      toast.info('Track is already in your cart')
+      openDrawer()
+      return
+    } else {
+      toast.success('Added to cart')
+    }
+
     addItem({
       trackId: track.id,
       title: track.title,
@@ -126,11 +176,17 @@ export default function TrackClient({ track }: TrackClientProps) {
 
   const licenseLabel = getLicenseLabel(track)
 
+  // Check if limited license is sold out
+  const isSoldOut =
+    track.license_type === 'limited' &&
+    track.license_limit != null &&
+    track.licenses_sold >= track.license_limit
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-8">
         {/* Left Column - Artwork, Waveform, Lyrics (60%) */}
-        <div className="flex flex-col gap-6 lg:col-span-3">
+        <div className="flex flex-col gap-4 sm:gap-6 lg:col-span-3">
           {/* Artwork */}
           <div className="aspect-square w-full overflow-hidden rounded-xl border border-border-default">
             {track.artwork_url ? (
@@ -240,10 +296,10 @@ export default function TrackClient({ track }: TrackClientProps) {
         </div>
 
         {/* Right Column - Details & Pricing (40%) */}
-        <div className="flex flex-col gap-6 lg:col-span-2">
+        <div className="flex flex-col gap-4 sm:gap-6 lg:col-span-2">
           {/* Track Title & Creator */}
           <div>
-            <h1 className="text-3xl font-bold text-text-primary">{track.title}</h1>
+            <h1 className="text-2xl font-bold text-text-primary sm:text-3xl">{track.title}</h1>
             <Link
               href={`/creator/${track.creators.id}`}
               className="mt-1 inline-block text-base text-text-secondary transition-colors hover:text-accent"
@@ -328,9 +384,14 @@ export default function TrackClient({ track }: TrackClientProps) {
                 <button
                   type="button"
                   onClick={() => handleAddToCart('non_exclusive')}
-                  className="w-full rounded-lg bg-accent py-3 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+                  disabled={isSoldOut}
+                  className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-colors sm:py-3 ${
+                    isSoldOut
+                      ? 'cursor-not-allowed bg-bg-elevated text-text-muted'
+                      : 'bg-accent text-white hover:bg-accent-hover'
+                  }`}
                 >
-                  Add to Cart
+                  {isSoldOut ? 'Sold Out' : 'Add to Cart'}
                 </button>
               </div>
             )}
@@ -353,9 +414,14 @@ export default function TrackClient({ track }: TrackClientProps) {
                 <button
                   type="button"
                   onClick={() => handleAddToCart('exclusive')}
-                  className="w-full rounded-lg border border-accent bg-transparent py-3 text-sm font-semibold text-accent transition-colors hover:bg-accent hover:text-white"
+                  disabled={isSoldOut}
+                  className={`w-full rounded-lg border py-3.5 text-sm font-semibold transition-colors sm:py-3 ${
+                    isSoldOut
+                      ? 'cursor-not-allowed border-border-default bg-transparent text-text-muted'
+                      : 'border-accent bg-transparent text-accent hover:bg-accent hover:text-white'
+                  }`}
                 >
-                  Buy Exclusive
+                  {isSoldOut ? 'Sold Out' : 'Buy Exclusive'}
                 </button>
               </div>
             )}
@@ -377,6 +443,33 @@ export default function TrackClient({ track }: TrackClientProps) {
           </div>
         </div>
       </div>
+
+      {/* Related Tracks Section */}
+      {relatedTracks.length > 0 && (
+        <div className="mt-8 border-t border-border-default pt-8 sm:mt-12 sm:pt-12">
+          <h2 className="mb-6 text-xl font-bold text-text-primary sm:text-2xl">
+            You Might Also Like
+          </h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+            {relatedTracks.map((relatedTrack) => (
+              <ProductCard
+                key={relatedTrack.id}
+                track={relatedTrack}
+                onPlay={() => {
+                  const playerTrack: PlayerTrack = {
+                    id: relatedTrack.id,
+                    title: relatedTrack.title,
+                    creatorName: relatedTrack.creators.display_name,
+                    artworkUrl: relatedTrack.artwork_url,
+                    previewUrl: relatedTrack.full_preview_url || relatedTrack.preview_clip_url || '',
+                  }
+                  play(playerTrack)
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

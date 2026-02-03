@@ -21,6 +21,11 @@ const navItems = [
     icon: MusicIcon,
   },
   {
+    label: 'Orders',
+    href: '/admin/orders',
+    icon: ReceiptIcon,
+  },
+  {
     label: 'Homepage',
     href: '/admin/homepage',
     icon: LayoutIcon,
@@ -367,6 +372,25 @@ function CloseIcon({ className }: { className?: string }) {
     >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  )
+}
+
+function ReceiptIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1z" />
+      <path d="M8 6h8" />
+      <path d="M8 10h8" />
+      <path d="M8 14h4" />
     </svg>
   )
 }
