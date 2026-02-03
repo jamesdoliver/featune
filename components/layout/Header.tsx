@@ -37,6 +37,7 @@ export default function Header() {
   const displayName = profile?.full_name || user?.email || "User";
   const displayEmail = user?.email || "";
   const initial = displayName.charAt(0).toUpperCase();
+  const firstName = profile?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border-default bg-bg-primary/80 backdrop-blur-xl">
@@ -102,11 +103,20 @@ export default function Header() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((prev) => !prev)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white transition-opacity hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg-primary"
+                className="flex items-center gap-1 text-sm font-medium text-text-primary transition-colors hover:text-accent focus:outline-none"
                 aria-expanded={dropdownOpen}
                 aria-haspopup="true"
               >
-                {initial}
+                Welcome, <span className="text-accent">{firstName}</span>
+                <svg
+                  className={`h-4 w-4 text-text-muted transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
               </button>
 
               {/* Dropdown menu */}
