@@ -128,16 +128,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Update profile to mark as creator
-    const { error: profileError } = await admin
-      .from('profiles')
-      .update({ is_creator: true })
-      .eq('id', user.id)
-
-    if (profileError) {
-      console.error('Profile update error:', profileError)
-      // Don't fail the whole request -- creator record was created
-    }
+    // Note: is_creator flag is set to true only when admin approves the creator
+    // (handled in app/api/admin/creators/[id]/approve/route.ts)
+    // Do NOT set is_creator=true here -- the application is still pending.
 
     // Send notification emails (non-blocking)
     sendCreatorApplicationEmail({ creatorName: displayName.trim() }).catch(() => {})

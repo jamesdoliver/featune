@@ -41,6 +41,12 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to approve creator' }, { status: 500 })
     }
 
+    // Sync is_creator flag on profile now that creator is approved
+    await admin
+      .from('profiles')
+      .update({ is_creator: true })
+      .eq('id', creator.user_id)
+
     logAdminAction(user.id, 'approve_creator', 'creator', creatorId, {
       display_name: creator.display_name,
     })

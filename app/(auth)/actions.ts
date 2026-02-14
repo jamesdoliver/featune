@@ -54,9 +54,13 @@ export async function signIn(formData: FormData) {
 
   revalidatePath('/', 'layout')
 
-  // Check for redirect param
+  // Check for redirect param (validated to prevent open redirects)
   const redirectTo = formData.get('redirect') as string
-  redirect(redirectTo || '/account')
+  const safeRedirect =
+    redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+      ? redirectTo
+      : '/account'
+  redirect(safeRedirect)
 }
 
 export async function signOut() {
