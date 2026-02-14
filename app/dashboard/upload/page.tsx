@@ -4,6 +4,8 @@ import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import type { LicenseType, VocalistType } from '@/lib/types/database'
+import { getUserFriendlyError } from '@/lib/errors'
+import { generateLyricsPDF, uploadLyricsPDF } from '@/lib/pdf/lyrics'
 
 /* ─── Constants ─── */
 
@@ -236,7 +238,7 @@ export default function UploadTrackPage() {
 
       const { data: creator } = await supabase
         .from('creators')
-        .select('id')
+        .select('id, display_name')
         .eq('user_id', user.id)
         .single()
 
@@ -256,7 +258,7 @@ export default function UploadTrackPage() {
             contentType: files.listening_file.type,
             upsert: false,
           })
-        if (error) throw new Error(`Failed to upload listening file: ${error.message}`)
+        if (error) throw new Error(getUserFriendlyError(`Failed to upload listening file: ${error.message}`))
         const { data: urlData } = supabase.storage.from('tracks-public').getPublicUrl(path)
         uploadedUrls.listening_file_url = urlData.publicUrl
       }
@@ -272,7 +274,7 @@ export default function UploadTrackPage() {
             contentType: files.acapella.type,
             upsert: false,
           })
-        if (error) throw new Error(`Failed to upload acapella: ${error.message}`)
+        if (error) throw new Error(getUserFriendlyError(`Failed to upload acapella: ${error.message}`))
         uploadedUrls.acapella_url = path // Store path for signed URL generation
       }
 
@@ -287,7 +289,7 @@ export default function UploadTrackPage() {
             contentType: files.instrumental.type,
             upsert: false,
           })
-        if (error) throw new Error(`Failed to upload instrumental: ${error.message}`)
+        if (error) throw new Error(getUserFriendlyError(`Failed to upload instrumental: ${error.message}`))
         uploadedUrls.instrumental_url = path
       }
 
@@ -302,7 +304,7 @@ export default function UploadTrackPage() {
             contentType: files.artwork.type,
             upsert: false,
           })
-        if (error) throw new Error(`Failed to upload artwork: ${error.message}`)
+        if (error) throw new Error(getUserFriendlyError(`Failed to upload artwork: ${error.message}`))
         const { data: urlData } = supabase.storage.from('tracks-public').getPublicUrl(path)
         uploadedUrls.artwork_url = urlData.publicUrl
       }
@@ -314,8 +316,10 @@ export default function UploadTrackPage() {
 
       if (uploadedUrls.listening_file_url) {
         setUploadProgress('Processing audio (waveform + previews)...')
-        const fastapiUrl =
-          process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000'
+        const fastapiUrl = process.env.NEXT_PUBLIC_FASTAPI_URL
+        if (!fastapiUrl) {
+          throw new Error('Audio processing service not configured')
+        }
 
         try {
           const processFormData = new FormData()
@@ -389,7 +393,28 @@ export default function UploadTrackPage() {
         .insert(trackRecord)
 
       if (insertError) {
-        throw new Error(`Failed to create track: ${insertError.message}`)
+        throw new Error(getUserFriendlyError(`Failed to create track: ${insertError.message}`))
+      }
+
+      // Generate and upload lyrics PDF if lyrics were provided
+      if (files.lyrics && files.lyrics.trim()) {
+        setUploadProgress('Generating lyrics PDF...')
+        try {
+          const lyricsPdfBytes = await generateLyricsPDF({
+            trackId,
+            trackTitle: metadata.title.trim(),
+            creatorName: creator.display_name,
+            lyrics: files.lyrics.trim(),
+          })
+          const lyricsPdfUrl = await uploadLyricsPDF(lyricsPdfBytes, trackId)
+          await supabase
+            .from('tracks')
+            .update({ lyrics_pdf_url: lyricsPdfUrl })
+            .eq('id', trackId)
+        } catch {
+          // Non-fatal: track can still be processed without lyrics PDF
+          console.warn('Failed to generate lyrics PDF, continuing.')
+        }
       }
 
       // Notify admin of new submission (non-blocking)
@@ -402,7 +427,7 @@ export default function UploadTrackPage() {
       setUploadProgress('')
       setSubmitSuccess(true)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      setSubmitError(getUserFriendlyError(err instanceof Error ? err : 'An unexpected error occurred.'))
       setUploadProgress('')
     } finally {
       setIsSubmitting(false)

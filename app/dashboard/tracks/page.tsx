@@ -32,7 +32,7 @@ export default async function MyTracksPage() {
       `id, title, vocalist_type, genre, mood, bpm, key,
        license_type, license_limit, licenses_sold,
        price_non_exclusive, price_exclusive,
-       artwork_url, status, created_at`
+       artwork_url, status, rejection_reason, created_at`
     )
     .eq('creator_id', (creator as Creator).id)
     .order('created_at', { ascending: false })

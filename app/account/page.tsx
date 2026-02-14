@@ -103,6 +103,18 @@ export default async function AccountPage() {
           </p>
         </Link>
 
+        <Link
+          href="/account/settings"
+          className="group rounded-xl border border-border-default bg-bg-card p-5 transition-colors hover:border-border-hover"
+        >
+          <h3 className="text-sm font-semibold text-text-primary transition-colors group-hover:text-accent">
+            Account Settings
+          </h3>
+          <p className="mt-1 text-sm text-text-muted">
+            Update your profile, email, and password.
+          </p>
+        </Link>
+
         {!profile?.is_creator && (
           <Link
             href="/dashboard/apply"

@@ -218,11 +218,26 @@ export default function TrackList({ tracks }: TrackListProps) {
                     >
                       {status.label}
                     </span>
+                    {track.status === 'rejected' && track.rejection_reason && (
+                      <p className="mt-1 max-w-[200px] truncate text-xs text-error/80" title={track.rejection_reason}>
+                        {track.rejection_reason}
+                      </p>
+                    )}
                   </td>
 
-                  {/* Date */}
-                  <td className="px-5 py-4 text-right text-sm text-text-muted">
-                    {formatDate(track.created_at)}
+                  {/* Date / Actions */}
+                  <td className="px-5 py-4 text-right">
+                    <span className="text-sm text-text-muted">
+                      {formatDate(track.created_at)}
+                    </span>
+                    {(track.status === 'pending' || track.status === 'rejected') && (
+                      <Link
+                        href={`/dashboard/tracks/${track.id}/edit`}
+                        className="ml-3 text-xs font-medium text-accent hover:underline"
+                      >
+                        Edit
+                      </Link>
+                    )}
                   </td>
                 </tr>
               )
@@ -272,6 +287,11 @@ export default function TrackList({ tracks }: TrackListProps) {
                       {licenseLabels[track.license_type]}
                     </span>
                   </div>
+                  {track.status === 'rejected' && track.rejection_reason && (
+                    <p className="mt-1 text-xs text-error/80">
+                      {track.rejection_reason}
+                    </p>
+                  )}
                 </div>
               </div>
 

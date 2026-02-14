@@ -1,53 +1,34 @@
 'use client'
 
-import { useState } from 'react'
-import ChatModal from './ChatModal'
+import { useRouter } from 'next/navigation'
 
 export default function ChatButton() {
-  const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
 
   return (
-    <>
-      {/* Floating chat button — above audio player */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-24 right-6 z-[50] flex h-14 w-14 items-center justify-center rounded-full bg-accent shadow-lg transition-colors hover:bg-accent-hover"
-        aria-label={isOpen ? 'Close AI assistant' : 'Open AI assistant'}
+    <button
+      type="button"
+      onClick={() => router.push('/search?focus=true')}
+      className="fixed bottom-28 right-4 z-[50] flex h-12 w-12 items-center justify-center rounded-full bg-accent shadow-lg transition-colors hover:bg-accent-hover sm:bottom-24 sm:right-6 sm:h-14 sm:w-14"
+      aria-label="Search tracks with AI"
+    >
+      {/* Search icon with sparkle */}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="sm:h-6 sm:w-6"
       >
-        {isOpen ? (
-          /* Close (X) icon */
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        ) : (
-          /* Sparkle / chat icon */
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
-          </svg>
-        )}
-      </button>
-
-      {/* Chat modal */}
-      <ChatModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
-    </>
+        <circle cx="11" cy="11" r="8" />
+        <path d="M21 21l-4.35-4.35" />
+        {/* Small sparkle accent */}
+        <path d="M16 4l.5 1.5L18 6l-1.5.5L16 8l-.5-1.5L14 6l1.5-.5L16 4" strokeWidth="1.5" />
+      </svg>
+    </button>
   )
 }

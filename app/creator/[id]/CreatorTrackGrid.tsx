@@ -22,6 +22,7 @@ interface Track {
     id: string
     display_name: string
   }
+  isSold?: boolean
 }
 
 interface CreatorTrackGridProps {
@@ -78,6 +79,7 @@ export default function CreatorTrackGrid({ tracks }: CreatorTrackGridProps) {
           key={track.id}
           track={track}
           showCreator={false}
+          isSold={track.isSold}
           onPlay={() =>
             play({
               id: track.id,

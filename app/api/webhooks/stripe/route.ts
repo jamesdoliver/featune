@@ -24,7 +24,11 @@ interface MetadataItem {
 
 interface SessionMetadata {
   userId: string
-  items: string // JSON-encoded MetadataItem[]
+  // Items may be in a single `items` key (legacy) or chunked across
+  // `items_0`, `items_1`, … with `itemChunkCount` indicating how many.
+  items?: string
+  itemChunkCount?: string
+  [key: string]: string | undefined
   discountPercent: string
   subtotal: string
   total: string
@@ -94,13 +98,29 @@ async function handleCheckoutSessionCompleted(
 ) {
   const metadata = session.metadata as unknown as SessionMetadata | null
 
-  if (!metadata?.userId || !metadata?.items) {
+  if (!metadata?.userId) {
     console.error('Missing required metadata on checkout session', session.id)
     return
   }
 
+  // Reassemble items from chunked metadata keys (items_0, items_1, …)
+  // with fallback to legacy single `items` key.
   const userId = metadata.userId
-  const items: MetadataItem[] = JSON.parse(metadata.items)
+  let items: MetadataItem[]
+
+  if (metadata.itemChunkCount) {
+    const chunkCount = parseInt(metadata.itemChunkCount, 10)
+    items = []
+    for (let i = 0; i < chunkCount; i++) {
+      const chunk = metadata[`items_${i}`]
+      if (chunk) items.push(...JSON.parse(chunk))
+    }
+  } else if (metadata.items) {
+    items = JSON.parse(metadata.items)
+  } else {
+    console.error('Missing items metadata on checkout session', session.id)
+    return
+  }
   const discountPercent = parseFloat(metadata.discountPercent) || 0
   const subtotal = parseFloat(metadata.subtotal) || 0
   const total = parseFloat(metadata.total) || 0
@@ -177,11 +197,29 @@ async function handleCheckoutSessionCompleted(
 
       const revenueSplit = creator?.revenue_split ?? 0.7
 
-      // (b) Calculate creator earnings
+      // (b) Calculate creator earnings (round to cents to avoid IEEE 754 drift)
+      const discountedPrice =
+        Math.round(item.price * (1 - discountPercent / 100) * 100) / 100
       const creatorEarnings =
-        item.price * (1 - discountPercent / 100) * revenueSplit
+        Math.round(discountedPrice * revenueSplit * 100) / 100
 
-      // (c) Create order_items record
+      // (c) Atomically update track BEFORE creating order_items
+      //     (prevents writing order items for failed exclusive purchases)
+      const { data: purchaseResult, error: purchaseError } = await supabase
+        .rpc('process_track_purchase', {
+          p_track_id: item.trackId,
+          p_license_type: item.licenseType,
+        })
+
+      if (purchaseError || !purchaseResult?.success) {
+        console.error(
+          `Purchase failed for track ${item.trackId}:`,
+          purchaseError?.message || purchaseResult?.error
+        )
+        continue
+      }
+
+      // (d) Create order_items record (only after successful purchase lock)
       const { data: orderItem, error: orderItemError } = await supabase
         .from('order_items')
         .insert({
@@ -202,41 +240,15 @@ async function handleCheckoutSessionCompleted(
         continue
       }
 
-      // (d) Fetch track details + increment licenses_sold
+      // (e) Fetch track details for license PDF (read-only)
       const { data: track } = await supabase
         .from('tracks')
-        .select('id, title, licenses_sold, license_type, license_limit, acapella_url, instrumental_url')
+        .select('id, title, acapella_url, instrumental_url')
         .eq('id', item.trackId)
         .single()
 
       if (track) {
-        const newLicensesSold = (track.licenses_sold ?? 0) + 1
-
-        await supabase
-          .from('tracks')
-          .update({ licenses_sold: newLicensesSold })
-          .eq('id', item.trackId)
-
-        // (e) Exclusive purchase: mark track as removed
-        if (item.licenseType === 'exclusive') {
-          await supabase
-            .from('tracks')
-            .update({ status: 'removed' })
-            .eq('id', item.trackId)
-        }
-        // (f) Limited license: check if sold out
-        else if (
-          track.license_type === 'limited' &&
-          track.license_limit !== null &&
-          newLicensesSold >= track.license_limit
-        ) {
-          await supabase
-            .from('tracks')
-            .update({ status: 'sold_out' })
-            .eq('id', item.trackId)
-        }
-
-        // (g) Generate license PDF
+        // (f) Generate license PDF
         let licensePdfUrl: string | undefined
         try {
           const licenseId = orderItem.id as string
@@ -251,7 +263,7 @@ async function handleCheckoutSessionCompleted(
           })
           licensePdfUrl = await uploadLicensePDF(pdfBytes, licenseId)
 
-          // (h) Update order_items with license_pdf_url
+          // (g) Update order_items with license_pdf_url
           await supabase
             .from('order_items')
             .update({ license_pdf_url: licensePdfUrl })
@@ -261,6 +273,11 @@ async function handleCheckoutSessionCompleted(
             `Failed to generate/upload license PDF for track ${item.trackId}:`,
             pdfErr
           )
+          // Mark the order item so admins can identify and regenerate failed PDFs
+          await supabase
+            .from('order_items')
+            .update({ license_pdf_url: 'GENERATION_FAILED' })
+            .eq('id', orderItem.id)
         }
 
         // Collect data for emails

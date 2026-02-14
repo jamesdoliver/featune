@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendCreatorApprovedEmail } from '@/lib/email'
+import { logAdminAction } from '@/lib/audit'
 
 export async function POST(
   request: Request,
@@ -56,6 +57,10 @@ export async function POST(
       console.error('Creator update error:', updateError)
       return NextResponse.json({ error: 'Failed to approve creator' }, { status: 500 })
     }
+
+    logAdminAction(user.id, 'approve_creator', 'creator', creatorId, {
+      display_name: creator.display_name,
+    })
 
     // Get user email for notification
     const { data: creatorProfile } = await admin

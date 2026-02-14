@@ -9,9 +9,15 @@ import { useCartStore } from "@/stores/cartStore";
 export default function Header() {
   const { user, profile, loading } = useUser();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const itemCount = useCartStore((state) => state.getItemCount());
   const openDrawer = useCartStore((state) => state.openDrawer);
+
+  // Prevent hydration mismatch by only rendering dynamic content after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -33,10 +39,9 @@ export default function Header() {
     };
   }, [dropdownOpen]);
 
-  // Derive display name and initial
+  // Derive display name for dropdown
   const displayName = profile?.full_name || user?.email || "User";
   const displayEmail = user?.email || "";
-  const initial = displayName.charAt(0).toUpperCase();
   const firstName = profile?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
 
   return (
@@ -88,15 +93,15 @@ export default function Header() {
               <circle cx="19" cy="21" r="1" />
               <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
             </svg>
-            {itemCount > 0 && (
+            {mounted && itemCount > 0 && (
               <span className="absolute -right-2 -top-2 flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-accent px-1 text-xs font-bold text-white">
                 {itemCount}
               </span>
             )}
           </button>
 
-          {loading ? (
-            // Loading skeleton placeholder
+          {!mounted || loading ? (
+            // Loading skeleton placeholder - show until mounted AND auth resolved
             <div className="h-8 w-8 animate-pulse rounded-full bg-bg-elevated" />
           ) : user ? (
             // Logged in: user avatar + dropdown

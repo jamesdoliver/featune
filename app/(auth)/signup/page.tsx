@@ -13,8 +13,8 @@ export default function SignUpPage() {
     async (_prevState: ActionState, formData: FormData) => {
       // Client-side password validation
       const password = formData.get('password') as string
-      if (password.length < 6) {
-        return { error: 'Password must be at least 6 characters' }
+      if (password.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(password)) {
+        return { error: 'Password must be at least 8 characters with one uppercase letter, one lowercase letter, and one number' }
       }
 
       const result = await signUp(formData)
@@ -102,13 +102,13 @@ export default function SignUpPage() {
                 name="password"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
-                placeholder="At least 6 characters"
+                placeholder="Min 8 chars, upper + lower + number"
                 className="w-full rounded-lg border border-border-default bg-bg-elevated px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent"
               />
               <p className="mt-1 text-xs text-text-muted">
-                Must be at least 6 characters
+                At least 8 characters with uppercase, lowercase, and a number
               </p>
             </div>
 

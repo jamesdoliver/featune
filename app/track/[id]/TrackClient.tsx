@@ -157,6 +157,8 @@ export default function TrackClient({ track, relatedTracks = [] }: TrackClientPr
       artworkUrl: track.artwork_url,
       licenseType,
       price,
+      priceNonExclusive: track.price_non_exclusive ?? 0,
+      priceExclusive: track.price_exclusive ?? null,
     })
     openDrawer()
   }

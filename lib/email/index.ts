@@ -12,6 +12,20 @@ const FROM_EMAIL = 'FEATUNE <noreply@featune.com>'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://featune.com'
 
+function logEmailError(emailType: string, recipient: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      event: 'email_send_failed',
+      emailType,
+      recipient,
+      error: message,
+      timestamp: new Date().toISOString(),
+    })
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Shared email layout helpers
 // ---------------------------------------------------------------------------
@@ -172,7 +186,7 @@ export async function sendPurchaseConfirmation(params: PurchaseConfirmationParam
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send purchase confirmation email:', error)
+    logEmailError('purchase_confirmation', to, error)
   }
 }
 
@@ -246,7 +260,7 @@ export async function sendCreatorSaleNotification(params: CreatorSaleNotificatio
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send creator sale notification email:', error)
+    logEmailError('creator_sale_notification', to, error)
   }
 }
 
@@ -295,7 +309,7 @@ export async function sendWelcomeEmail(params: WelcomeEmailParams): Promise<void
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send welcome email:', error)
+    logEmailError('welcome', to, error)
   }
 }
 
@@ -348,7 +362,7 @@ export async function sendTrackApprovedEmail(params: TrackApprovedEmailParams): 
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send track approved email:', error)
+    logEmailError('track_approved', creatorEmail, error)
   }
 }
 
@@ -410,7 +424,7 @@ export async function sendTrackRejectedEmail(params: TrackRejectedEmailParams): 
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send track rejected email:', error)
+    logEmailError('track_rejected', creatorEmail, error)
   }
 }
 
@@ -466,7 +480,7 @@ export async function sendPayoutCompleteEmail(params: PayoutCompleteEmailParams)
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send payout complete email:', error)
+    logEmailError('payout_complete', creatorEmail, error)
   }
 }
 
@@ -531,7 +545,7 @@ export async function sendNewSubmissionEmail(params: NewSubmissionEmailParams): 
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send new submission email:', error)
+    logEmailError('new_submission', adminEmail, error)
   }
 }
 
@@ -582,7 +596,7 @@ export async function sendCreatorApplicationEmail(params: CreatorApplicationEmai
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send creator application email:', error)
+    logEmailError('creator_application', adminEmail, error)
   }
 }
 
@@ -630,7 +644,7 @@ export async function sendCreatorApplicationReceivedEmail(params: CreatorApplica
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send creator application received email:', error)
+    logEmailError('creator_application_received', to, error)
   }
 }
 
@@ -684,7 +698,7 @@ export async function sendCreatorApprovedEmail(params: CreatorApprovedEmailParam
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send creator approved email:', error)
+    logEmailError('creator_approved', to, error)
   }
 }
 
@@ -739,6 +753,6 @@ export async function sendLeadWelcomeEmail(params: LeadWelcomeEmailParams): Prom
       html: emailWrapper(content),
     })
   } catch (error) {
-    console.error('Failed to send lead welcome email:', error)
+    logEmailError('lead_welcome', to, error)
   }
 }

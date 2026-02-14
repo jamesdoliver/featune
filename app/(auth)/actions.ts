@@ -4,12 +4,20 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+const PASSWORD_MIN_LENGTH = 8
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/
+const PASSWORD_ERROR = 'Password must be at least 8 characters with one uppercase letter, one lowercase letter, and one number'
+
 export async function signUp(formData: FormData) {
   const supabase = await createClient()
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const fullName = formData.get('fullName') as string
+
+  if (!password || password.length < PASSWORD_MIN_LENGTH || !PASSWORD_REGEX.test(password)) {
+    return { error: PASSWORD_ERROR }
+  }
 
   const { error } = await supabase.auth.signUp({
     email,
@@ -63,8 +71,13 @@ export async function resetPassword(formData: FormData) {
 
   const email = formData.get('email') as string
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+  if (!siteUrl) {
+    return { error: 'Site URL not configured. Please contact support.' }
+  }
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback?next=/account`,
+    redirectTo: `${siteUrl}/auth/callback?next=/account`,
   })
 
   if (error) {
@@ -72,4 +85,87 @@ export async function resetPassword(formData: FormData) {
   }
 
   return { success: 'Check your email for a password reset link' }
+}
+
+export async function updateProfile(formData: FormData) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const fullName = formData.get('fullName') as string
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ full_name: fullName })
+    .eq('id', user.id)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/account')
+  return { success: 'Profile updated successfully' }
+}
+
+export async function updateEmail(formData: FormData) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const newEmail = formData.get('email') as string
+
+  if (!newEmail || newEmail === user.email) {
+    return { error: 'Please enter a different email address' }
+  }
+
+  const { error } = await supabase.auth.updateUser({ email: newEmail })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: 'Verification email sent to your new address. Please check your inbox.' }
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
+  }
+
+  const newPassword = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  if (!newPassword || newPassword.length < PASSWORD_MIN_LENGTH || !PASSWORD_REGEX.test(newPassword)) {
+    return { error: PASSWORD_ERROR }
+  }
+
+  if (newPassword !== confirmPassword) {
+    return { error: 'Passwords do not match' }
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  return { success: 'Password updated successfully' }
 }

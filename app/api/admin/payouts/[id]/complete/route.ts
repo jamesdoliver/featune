@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPayoutCompleteEmail } from '@/lib/email'
+import { logAdminAction } from '@/lib/audit'
 
 export async function PATCH(
   _request: Request,
@@ -52,6 +53,11 @@ export async function PATCH(
         { status: 500 }
       )
     }
+
+    logAdminAction(user.id, 'complete_payout', 'payout', id, {
+      amount: updatedPayout?.amount,
+      creator_id: updatedPayout?.creator_id,
+    })
 
     // Fetch creator info and send payout complete email (fire-and-forget)
     if (updatedPayout) {

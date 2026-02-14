@@ -25,18 +25,7 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  // Creator check: is the user flagged as a creator?
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_creator')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_creator) {
-    redirect('/dashboard/apply')
-  }
-
-  // Fetch creator record
+  // Fetch creator record directly (don't rely on is_creator flag alone)
   const { data: creator } = await supabase
     .from('creators')
     .select('*')
@@ -60,6 +49,16 @@ export default async function DashboardLayout({
             <p className="text-center text-sm font-medium text-warning">
               Your creator application is under review. Some features may be
               limited until approval.
+            </p>
+          </div>
+        )}
+
+        {/* Rejected banner */}
+        {typedCreator.status === 'rejected' && (
+          <div className="border-b border-error/30 bg-error/10 px-6 py-3">
+            <p className="text-center text-sm font-medium text-error">
+              Your creator application has been rejected. Please contact
+              support for more information.
             </p>
           </div>
         )}

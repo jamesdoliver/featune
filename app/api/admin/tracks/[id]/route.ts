@@ -141,6 +141,27 @@ export async function PATCH(
     // Use admin client to bypass RLS
     const adminClient = createAdminClient()
 
+    // Validate license_limit is not below current licenses_sold
+    if (updateData.license_limit != null) {
+      const { data: currentTrack } = await adminClient
+        .from('tracks')
+        .select('licenses_sold')
+        .eq('id', id)
+        .single()
+
+      if (
+        currentTrack &&
+        currentTrack.licenses_sold > (updateData.license_limit as number)
+      ) {
+        return NextResponse.json(
+          {
+            error: `License limit cannot be less than current licenses sold (${currentTrack.licenses_sold})`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     const { error } = await adminClient
       .from('tracks')
       .update(updateData)

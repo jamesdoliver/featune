@@ -4,10 +4,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const SIGNED_URL_EXPIRY = 3600 // 1 hour in seconds
 
-type FileType = 'acapella' | 'instrumental' | 'license'
+type FileType = 'acapella' | 'instrumental' | 'license' | 'lyrics'
 
 function isValidFileType(type: string | null): type is FileType {
-  return type === 'acapella' || type === 'instrumental' || type === 'license'
+  return type === 'acapella' || type === 'instrumental' || type === 'license' || type === 'lyrics'
 }
 
 export async function GET(
@@ -20,7 +20,7 @@ export async function GET(
 
   if (!isValidFileType(type)) {
     return NextResponse.json(
-      { error: 'Invalid file type. Must be acapella, instrumental, or license.' },
+      { error: 'Invalid file type. Must be acapella, instrumental, license, or lyrics.' },
       { status: 400 }
     )
   }
@@ -50,7 +50,8 @@ export async function GET(
       tracks!inner (
         id,
         acapella_url,
-        instrumental_url
+        instrumental_url,
+        lyrics_pdf_url
       )
     `
     )
@@ -71,8 +72,8 @@ export async function GET(
   // Supabase may return tracks as an array or object depending on the relation
   const tracksRaw = orderItem.tracks as unknown
   const track = Array.isArray(tracksRaw)
-    ? (tracksRaw[0] as { id: string; acapella_url: string | null; instrumental_url: string | null })
-    : (tracksRaw as { id: string; acapella_url: string | null; instrumental_url: string | null })
+    ? (tracksRaw[0] as { id: string; acapella_url: string | null; instrumental_url: string | null; lyrics_pdf_url: string | null })
+    : (tracksRaw as { id: string; acapella_url: string | null; instrumental_url: string | null; lyrics_pdf_url: string | null })
 
   let filePath: string | null = null
 
@@ -85,6 +86,9 @@ export async function GET(
       break
     case 'license':
       filePath = orderItem.license_pdf_url
+      break
+    case 'lyrics':
+      filePath = track.lyrics_pdf_url
       break
   }
 
@@ -99,8 +103,11 @@ export async function GET(
   const adminSupabase = createAdminClient()
 
   // Determine bucket based on file type
-  // License PDFs and private audio files are in 'private' bucket
-  const bucket = 'private'
+  // License PDFs are in 'licenses' bucket, audio files and lyrics PDFs are in 'tracks-private'
+  let bucket = 'tracks-private'
+  if (type === 'license') {
+    bucket = 'licenses'
+  }
 
   // Extract the storage path from the URL if it's a full URL
   let storagePath = filePath

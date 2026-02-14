@@ -13,8 +13,18 @@ interface CreatorRow {
   created_at: string
 }
 
-export default async function AdminCreatorsPage() {
+const PAGE_SIZE = 50
+
+export default async function AdminCreatorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
   const supabase = await createClient()
+  const { page: pageParam } = await searchParams
+  const page = Math.max(1, parseInt(pageParam || '1', 10))
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   const {
     data: { user },
@@ -24,13 +34,14 @@ export default async function AdminCreatorsPage() {
     redirect('/login')
   }
 
-  // Fetch all creators ordered by created_at desc
-  const { data: creators } = await supabase
+  // Fetch creators (paginated)
+  const { data: creators, count } = await supabase
     .from('creators')
-    .select('id, user_id, display_name, bio, profile_image_url, revenue_split, status, created_at')
+    .select('id, user_id, display_name, bio, profile_image_url, revenue_split, status, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
+    .range(from, to)
 
-  // Fetch track counts for each creator
+  // Fetch track counts for each creator on this page
   const creatorIds = (creators ?? []).map((c: CreatorRow) => c.id)
   let trackCountMap: Record<string, number> = {}
 
@@ -54,13 +65,42 @@ export default async function AdminCreatorsPage() {
     track_count: trackCountMap[creator.id] ?? 0,
   }))
 
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
+
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-8 text-2xl font-bold tracking-tight text-text-primary">
-        Creators
-      </h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+          Creators
+          <span className="ml-2 text-base font-normal text-text-muted">({count ?? 0})</span>
+        </h1>
+      </div>
 
       <CreatorsList initialCreators={creatorsWithCounts} />
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          {page > 1 && (
+            <a
+              href={`/admin/creators?page=${page - 1}`}
+              className="rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated"
+            >
+              Previous
+            </a>
+          )}
+          <span className="text-sm text-text-muted">
+            Page {page} of {totalPages}
+          </span>
+          {page < totalPages && (
+            <a
+              href={`/admin/creators?page=${page + 1}`}
+              className="rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated"
+            >
+              Next
+            </a>
+          )}
+        </div>
+      )}
     </div>
   )
 }

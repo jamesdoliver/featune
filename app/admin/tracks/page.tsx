@@ -28,8 +28,18 @@ export interface AdminTrack {
   creator_name: string
 }
 
-export default async function AdminTracksPage() {
+const PAGE_SIZE = 50
+
+export default async function AdminTracksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
   const supabase = await createClient()
+  const { page: pageParam } = await searchParams
+  const page = Math.max(1, parseInt(pageParam || '1', 10))
+  const from = (page - 1) * PAGE_SIZE
+  const to = from + PAGE_SIZE - 1
 
   const {
     data: { user },
@@ -39,12 +49,14 @@ export default async function AdminTracksPage() {
     redirect('/login')
   }
 
-  const { data: rawTracks, error } = await supabase
+  const { data: rawTracks, error, count } = await supabase
     .from('tracks')
     .select(
-      'id, title, genre, license_type, price_non_exclusive, artwork_url, status, created_at, creators!inner(id, display_name)'
+      'id, title, genre, license_type, price_non_exclusive, artwork_url, status, created_at, creators!inner(id, display_name)',
+      { count: 'exact' }
     )
     .order('created_at', { ascending: false })
+    .range(from, to)
 
   if (error) {
     console.error('Error fetching tracks:', error)
@@ -70,12 +82,41 @@ export default async function AdminTracksPage() {
     }
   )
 
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
+
   return (
     <div className="mx-auto max-w-6xl">
-      <h1 className="mb-8 text-2xl font-bold tracking-tight text-text-primary">
-        All Tracks
-      </h1>
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+          All Tracks
+          <span className="ml-2 text-base font-normal text-text-muted">({count ?? 0})</span>
+        </h1>
+      </div>
       <AdminTrackList tracks={tracks} />
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          {page > 1 && (
+            <a
+              href={`/admin/tracks?page=${page - 1}`}
+              className="rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated"
+            >
+              Previous
+            </a>
+          )}
+          <span className="text-sm text-text-muted">
+            Page {page} of {totalPages}
+          </span>
+          {page < totalPages && (
+            <a
+              href={`/admin/tracks?page=${page + 1}`}
+              className="rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-elevated"
+            >
+              Next
+            </a>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -52,6 +52,8 @@ export default function ProductCard({
       artworkUrl: track.artwork_url,
       licenseType: 'non_exclusive',
       price: track.price_non_exclusive,
+      priceNonExclusive: track.price_non_exclusive,
+      priceExclusive: track.price_exclusive ?? null,
     })
     openDrawer()
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCreatorEarnings } from '@/lib/earnings'
 import type { Creator, Payout } from '@/lib/types/database'
 
 export async function POST() {
@@ -35,60 +36,31 @@ export async function POST() {
 
     const typedCreator = creator as Creator
 
-    // Calculate available balance
-    const { data: creatorTracks } = await supabase
-      .from('tracks')
-      .select('id')
-      .eq('creator_id', typedCreator.id)
+    // Calculate available balance using shared earnings helper
+    const earnings = await getCreatorEarnings(supabase, typedCreator.id)
 
-    const trackIds = (creatorTracks ?? []).map((t: { id: string }) => t.id)
-
-    let totalEarnings = 0
-
-    if (trackIds.length > 0) {
-      const { data: earningsData } = await supabase
-        .from('order_items')
-        .select('creator_earnings')
-        .in('track_id', trackIds)
-
-      totalEarnings = (earningsData ?? []).reduce(
-        (sum: number, item: { creator_earnings: number }) =>
-          sum + (item.creator_earnings ?? 0),
-        0
+    // Block if there's already a pending payout (prevents duplicate requests)
+    if (earnings.pendingPayouts > 0) {
+      return NextResponse.json(
+        { error: 'You already have a pending payout request. Please wait for it to be processed.' },
+        { status: 409 }
       )
     }
 
-    // Fetch all payouts
-    const { data: payouts } = await supabase
-      .from('payouts')
-      .select('*')
-      .eq('creator_id', typedCreator.id)
-
-    const typedPayouts = (payouts ?? []) as Payout[]
-
-    const completedPayouts = typedPayouts
-      .filter((p) => p.status === 'completed')
-      .reduce((sum, p) => sum + (p.amount ?? 0), 0)
-
-    const pendingPayoutsTotal = typedPayouts
-      .filter((p) => p.status === 'pending' || p.status === 'processing')
-      .reduce((sum, p) => sum + (p.amount ?? 0), 0)
-
-    const availableBalance = totalEarnings - completedPayouts
-    const requestableBalance = availableBalance - pendingPayoutsTotal
-
     // Validate minimum payout amount
-    if (requestableBalance < 50) {
+    if (earnings.requestableBalance < 50) {
       return NextResponse.json(
         {
           error:
-            requestableBalance < 0
+            earnings.requestableBalance < 0
               ? 'No available balance for payout'
               : 'Minimum payout amount is $50.00',
         },
         { status: 400 }
       )
     }
+
+    const requestableBalance = earnings.requestableBalance
 
     // Create payout record using admin client to bypass RLS
     const admin = createAdminClient()

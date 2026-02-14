@@ -300,8 +300,10 @@ export default function AdminUploadPage() {
 
       if (uploadedUrls.listening_file_url) {
         setUploadProgress('Processing audio (waveform + previews)...')
-        const fastapiUrl =
-          process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000'
+        const fastapiUrl = process.env.NEXT_PUBLIC_FASTAPI_URL
+        if (!fastapiUrl) {
+          throw new Error('Audio processing service not configured')
+        }
 
         try {
           const processFormData = new FormData()

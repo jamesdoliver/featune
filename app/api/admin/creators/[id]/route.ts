@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { logAdminAction } from '@/lib/audit'
 
 export async function PATCH(
   request: NextRequest,
@@ -82,6 +83,16 @@ export async function PATCH(
       { error: 'Failed to update creator' },
       { status: 500 }
     )
+  }
+
+  logAdminAction(user.id, 'update_creator', 'creator', id, updateFields)
+
+  // Sync is_creator flag on profile when creator status changes
+  if (status === 'approved' || status === 'rejected') {
+    await adminSupabase
+      .from('profiles')
+      .update({ is_creator: status === 'approved' })
+      .eq('id', updatedCreator.user_id)
   }
 
   return NextResponse.json({ creator: updatedCreator })

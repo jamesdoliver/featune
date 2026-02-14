@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { calculateDiscount } from "@/lib/pricing"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,6 +13,9 @@ export interface CartItem {
   artworkUrl: string | null
   licenseType: "non_exclusive" | "exclusive"
   price: number
+  /** Both prices stored so license toggle can update the price correctly */
+  priceNonExclusive: number
+  priceExclusive: number | null
 }
 
 interface CartState {
@@ -43,17 +47,6 @@ interface CartActions {
 }
 
 export type CartStore = CartState & CartActions
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Return the discount rate based on the number of items in the cart. */
-function calculateDiscount(itemCount: number): number {
-  if (itemCount >= 3) return 0.2 // 20 % off
-  if (itemCount >= 2) return 0.1 // 10 % off
-  return 0
-}
 
 // ---------------------------------------------------------------------------
 // Store

@@ -46,8 +46,7 @@ function formatPrice(price: number): string {
   return `$${price.toFixed(2)}`
 }
 
-const FASTAPI_URL =
-  process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000'
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL ?? ''
 
 // ---------------------------------------------------------------------------
 // Component

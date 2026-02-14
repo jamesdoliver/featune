@@ -241,13 +241,18 @@ function CartContent() {
   const [showTermsModal, setShowTermsModal] = useState(false)
 
   // Toggle between non_exclusive and exclusive for a given item.
-  // Since the cart store replaces by trackId on addItem, we simply flip the
-  // licenseType. In a real implementation the component would know both prices
-  // and update accordingly; for now we keep the same price.
   const handleToggleLicense = (item: CartItem) => {
     const newType: CartItem['licenseType'] =
       item.licenseType === 'non_exclusive' ? 'exclusive' : 'non_exclusive'
-    addItem({ ...item, licenseType: newType })
+
+    // Don't allow switching to exclusive if no exclusive price exists
+    if (newType === 'exclusive' && item.priceExclusive == null) return
+
+    const newPrice =
+      newType === 'exclusive'
+        ? item.priceExclusive!
+        : item.priceNonExclusive
+    addItem({ ...item, licenseType: newType, price: newPrice })
   }
 
   // Opens terms modal before checkout

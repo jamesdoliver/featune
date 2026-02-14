@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe/helpers'
+import { calculateDiscount } from '@/lib/pricing'
 import type { OrderLicenseType } from '@/lib/types/database'
 
 interface CartItem {
@@ -11,12 +12,6 @@ interface CartItem {
 interface RequestBody {
   items: CartItem[]
   termsAccepted?: boolean
-}
-
-function calculateDiscount(itemCount: number): number {
-  if (itemCount >= 3) return 0.20
-  if (itemCount >= 2) return 0.10
-  return 0
 }
 
 export async function POST(request: NextRequest) {
@@ -80,6 +75,10 @@ export async function POST(request: NextRequest) {
       )
     }
   }
+
+  // Deduplicate items by trackId (last entry wins, prevents double-purchasing)
+  const deduped = new Map(body.items.map((item) => [item.trackId, item]))
+  body.items = Array.from(deduped.values())
 
   // 3. Fetch tracks from database
   const trackIds = body.items.map((item) => item.trackId)
@@ -179,7 +178,13 @@ export async function POST(request: NextRequest) {
   const total = subtotal - discountAmount
 
   // 6. Create Stripe Checkout Session
-  const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL
+  if (!origin) {
+    return NextResponse.json(
+      { error: 'Site URL not configured' },
+      { status: 500 }
+    )
+  }
 
   // Helper to check if a string is a valid URL
   const isValidUrl = (str: string | null | undefined): str is string => {
@@ -209,13 +214,33 @@ export async function POST(request: NextRequest) {
     }
   })
 
-  // Prepare metadata items (Stripe metadata values must be strings, max 500 chars)
+  // Prepare metadata items – Stripe limits each metadata value to 500 chars.
+  // Split items across multiple keys to avoid overflow.
   const metadataItems = lineItemsData.map((item) => ({
     trackId: item.trackId,
     licenseType: item.licenseType,
     price: item.price,
     creatorId: item.creatorId,
   }))
+
+  const STRIPE_META_MAX = 500
+  const itemChunks: Record<string, string> = {}
+  let chunkIndex = 0
+  let currentChunk: typeof metadataItems = []
+
+  for (const mi of metadataItems) {
+    const tentative = JSON.stringify([...currentChunk, mi])
+    if (tentative.length > STRIPE_META_MAX && currentChunk.length > 0) {
+      itemChunks[`items_${chunkIndex}`] = JSON.stringify(currentChunk)
+      chunkIndex++
+      currentChunk = [mi]
+    } else {
+      currentChunk.push(mi)
+    }
+  }
+  if (currentChunk.length > 0) {
+    itemChunks[`items_${chunkIndex}`] = JSON.stringify(currentChunk)
+  }
 
   try {
     const stripe = getStripe()
@@ -224,7 +249,8 @@ export async function POST(request: NextRequest) {
       line_items: stripeLineItems,
       metadata: {
         userId: user.id,
-        items: JSON.stringify(metadataItems),
+        ...itemChunks,
+        itemChunkCount: String(chunkIndex + 1),
         discountPercent: String(discountPercent * 100),
         subtotal: String(subtotal),
         total: String(total),

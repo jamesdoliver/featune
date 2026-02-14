@@ -53,19 +53,19 @@ export default async function CreatorPage({
 
   if (!creator) notFound()
 
-  // Fetch creator's approved tracks
+  // Fetch creator's approved and sold (removed) tracks
   const { data: tracks } = await supabase
     .from('tracks')
     .select(
       `
       id, title, artwork_url, genre, mood, bpm, key,
       price_non_exclusive, price_exclusive, license_type,
-      is_ai_generated, vocalist_type, preview_clip_url, full_preview_url,
+      is_ai_generated, vocalist_type, preview_clip_url, full_preview_url, status,
       creators!inner(id, display_name)
     `
     )
     .eq('creator_id', id)
-    .eq('status', 'approved')
+    .in('status', ['approved', 'removed'])
     .order('created_at', { ascending: false })
 
   // Normalize the tracks data: Supabase returns the joined creators as an
@@ -81,6 +81,7 @@ export default async function CreatorPage({
     return {
       ...track,
       creators: creatorObj,
+      isSold: track.status === 'removed',
     } as {
       id: string
       title: string
@@ -97,6 +98,7 @@ export default async function CreatorPage({
       preview_clip_url: string | null
       full_preview_url: string | null
       creators: { id: string; display_name: string }
+      isSold: boolean
     }
   })
 

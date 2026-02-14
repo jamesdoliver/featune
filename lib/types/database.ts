@@ -56,6 +56,7 @@ export interface Track {
   waveform_data: number[] | null
   is_ai_generated: boolean
   status: TrackStatus
+  rejection_reason: string | null
   created_at: string
   approved_at: string | null
   updated_at: string

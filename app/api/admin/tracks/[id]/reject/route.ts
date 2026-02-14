@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendTrackRejectedEmail } from '@/lib/email'
+import { logAdminAction } from '@/lib/audit'
 
 export async function PATCH(
   request: NextRequest,
@@ -53,6 +54,8 @@ export async function PATCH(
         { status: 500 }
       )
     }
+
+    logAdminAction(user.id, 'reject_track', 'track', id, { reason })
 
     // Fetch creator info and send rejection email (fire-and-forget)
     const { data: track } = await adminClient
