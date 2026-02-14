@@ -315,7 +315,7 @@ async def chat_query(body: ChatQueryRequest, request: Request) -> ChatQueryRespo
     # Use Claude Haiku for cost-efficient intelligent search
     try:
         message = anthropic.messages.create(
-            model="claude-3-haiku-20240307",
+            model=os.environ.get("CLAUDE_MODEL", "claude-haiku-4-5-20251001"),
             max_tokens=1000,
             timeout=30.0,
             system=SYSTEM_PROMPT,

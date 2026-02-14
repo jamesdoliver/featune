@@ -1,8 +1,11 @@
 import logging
 import os
+import uuid
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
 
 # Configure structured logging for the entire backend
 logging.basicConfig(
@@ -42,6 +45,31 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
+# Request Correlation ID Middleware
+# ---------------------------------------------------------------------------
+_correlation_logger = logging.getLogger("featune.request")
+
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    """Attach a unique X-Request-ID to every request/response for tracing."""
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        request.state.request_id = request_id
+        _correlation_logger.info(
+            "%s %s request_id=%s", request.method, request.url.path, request_id
+        )
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+app.add_middleware(CorrelationIDMiddleware)
+
+
+# ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
 from app.routers import process, chat
@@ -55,5 +83,37 @@ app.include_router(chat.router, prefix="/chat", tags=["chat"])
 # ---------------------------------------------------------------------------
 @app.get("/health", tags=["health"])
 async def health_check():
-    """Return service health status."""
-    return {"status": "ok"}
+    """Return service health status, including dependency checks."""
+    checks: dict[str, str] = {}
+
+    # Check Supabase connectivity
+    try:
+        from supabase import create_client
+        url = os.getenv("NEXT_PUBLIC_SUPABASE_URL")
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        if url and key:
+            sb = create_client(url, key)
+            sb.table("tracks").select("id").limit(1).execute()
+            checks["supabase"] = "ok"
+        else:
+            checks["supabase"] = "not_configured"
+    except Exception:
+        checks["supabase"] = "error"
+
+    # Check Anthropic API key is set
+    if os.getenv("ANTHROPIC_API_KEY"):
+        checks["anthropic"] = "ok"
+    else:
+        checks["anthropic"] = "not_configured"
+
+    # Overall status: degraded if any dependency is in error
+    overall = "ok"
+    if any(v == "error" for v in checks.values()):
+        overall = "degraded"
+
+    from fastapi.responses import JSONResponse
+    status_code = 200 if overall == "ok" else 503
+    return JSONResponse(
+        content={"status": overall, "checks": checks},
+        status_code=status_code,
+    )

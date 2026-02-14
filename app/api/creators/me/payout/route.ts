@@ -47,14 +47,15 @@ export async function POST() {
       )
     }
 
-    // Validate minimum payout amount
-    if (earnings.requestableBalance < 50) {
+    // Validate minimum payout amount (configurable via env)
+    const minPayout = Number(process.env.MIN_PAYOUT_AMOUNT) || 50
+    if (earnings.requestableBalance < minPayout) {
       return NextResponse.json(
         {
           error:
             earnings.requestableBalance < 0
               ? 'No available balance for payout'
-              : 'Minimum payout amount is $50.00',
+              : `Minimum payout amount is $${minPayout.toFixed(2)}`,
         },
         { status: 400 }
       )

@@ -35,6 +35,9 @@ export default function AudioPlayer() {
   // Track visibility for slide-up animation
   const [visible, setVisible] = useState(false)
 
+  // Error state for failed audio loads
+  const [error, setError] = useState(false)
+
   // Show the player with animation when a track is set
   useEffect(() => {
     if (currentTrack) {
@@ -52,6 +55,7 @@ export default function AudioPlayer() {
     const audio = audioRef.current
     if (!audio || !currentTrack) return
 
+    setError(false)
     audio.src = currentTrack.previewUrl
     audio.load()
 
@@ -114,6 +118,11 @@ export default function AudioPlayer() {
     setProgress(0)
   }, [pause, setProgress])
 
+  const handleError = useCallback(() => {
+    setError(true)
+    pause()
+  }, [pause])
+
   // Progress bar click to seek
   const handleProgressClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -170,6 +179,7 @@ export default function AudioPlayer() {
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
+        onError={handleError}
       />
 
       {/* Player bar */}
@@ -218,9 +228,15 @@ export default function AudioPlayer() {
             <p className="truncate text-sm font-medium text-text-primary">
               {currentTrack.title}
             </p>
-            <p className="truncate text-xs text-text-secondary">
-              {currentTrack.creatorName}
-            </p>
+            {error ? (
+              <p className="truncate text-xs text-error">
+                Failed to load audio
+              </p>
+            ) : (
+              <p className="truncate text-xs text-text-secondary">
+                {currentTrack.creatorName}
+              </p>
+            )}
           </div>
 
           {/* Play/Pause button */}

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import CreatorTrackGrid from './CreatorTrackGrid'
@@ -109,9 +110,11 @@ export default async function CreatorPage({
         <div className="mx-auto flex max-w-7xl flex-col items-center px-4 py-12 text-center sm:px-6 md:py-16 lg:px-8">
           {/* Profile Image */}
           {creator.profile_image_url ? (
-            <img
+            <Image
               src={creator.profile_image_url}
               alt={creator.display_name}
+              width={128}
+              height={128}
               className="h-24 w-24 rounded-full border-2 border-accent object-cover md:h-32 md:w-32"
             />
           ) : (

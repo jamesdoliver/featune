@@ -652,8 +652,8 @@ function StepMetadata({ metadata, onUpdate, error }: StepMetadataProps) {
           <FieldGroup label="BPM" hint="Optional">
             <input
               type="number"
-              min={1}
-              max={999}
+              min={40}
+              max={320}
               value={metadata.bpm}
               onChange={(e) => onUpdate('bpm', e.target.value)}
               placeholder="e.g. 120"

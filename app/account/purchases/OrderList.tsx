@@ -85,6 +85,16 @@ function getStatusConfig(status: string): { label: string; className: string } {
         label: 'Failed',
         className: 'bg-error/15 text-error',
       }
+    case 'cancelled':
+      return {
+        label: 'Cancelled',
+        className: 'bg-text-muted/15 text-text-muted',
+      }
+    case 'refunded':
+      return {
+        label: 'Refunded',
+        className: 'bg-accent-muted text-accent',
+      }
     default:
       return {
         label: status,
@@ -181,6 +191,58 @@ function OrderCard({ order }: { order: Order }) {
   )
 }
 
+function DownloadButton({
+  href,
+  label,
+  ariaLabel,
+  title,
+}: {
+  href: string
+  label: string
+  ariaLabel: string
+  title: string
+}) {
+  const [loading, setLoading] = useState(false)
+
+  const handleClick = async () => {
+    setLoading(true)
+    try {
+      // Use fetch to trigger download, then follow the redirect
+      const res = await fetch(href)
+      if (!res.ok) throw new Error('Download failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      // Extract filename from content-disposition header if available
+      const disposition = res.headers.get('content-disposition')
+      const match = disposition?.match(/filename="?(.+?)"?$/i)
+      a.download = match?.[1] ?? label.toLowerCase()
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // Fallback: open link directly
+      window.location.href = href
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={loading}
+      className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+      aria-label={ariaLabel}
+      title={title}
+    >
+      {loading ? <SpinnerIcon /> : <DownloadIcon />}
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  )
+}
+
 function OrderItemRow({ item }: { item: OrderItem }) {
   const track = item.tracks
   const licenseLabel = getLicenseLabel(item.license_type)
@@ -260,40 +322,39 @@ function OrderItemRow({ item }: { item: OrderItem }) {
       {/* Download buttons */}
       <div className="flex shrink-0 items-center gap-1">
         {track?.acapella_url && (
-          <a
+          <DownloadButton
             href={`/api/downloads/${track.id}?type=acapella`}
-            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
-            aria-label={`Download acapella for ${track?.title ?? 'track'}`}
+            label="Acapella"
+            ariaLabel={`Download acapella for ${track?.title ?? 'track'}`}
             title="Download Acapella"
-          >
-            <DownloadIcon />
-            <span className="hidden sm:inline">Acapella</span>
-          </a>
+          />
         )}
         {track?.instrumental_url && (
-          <a
+          <DownloadButton
             href={`/api/downloads/${track.id}?type=instrumental`}
-            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
-            aria-label={`Download instrumental for ${track?.title ?? 'track'}`}
+            label="Stems"
+            ariaLabel={`Download instrumental for ${track?.title ?? 'track'}`}
             title="Download Instrumental"
-          >
-            <DownloadIcon />
-            <span className="hidden sm:inline">Stems</span>
-          </a>
+          />
         )}
         {item.license_pdf_url && track && (
-          <a
+          <DownloadButton
             href={`/api/downloads/${track.id}?type=license`}
-            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-border-default px-2 text-xs font-medium text-text-secondary transition-colors hover:border-accent hover:text-accent"
-            aria-label={`Download license for ${track.title}`}
+            label="License"
+            ariaLabel={`Download license for ${track.title}`}
             title="Download License PDF"
-          >
-            <DownloadIcon />
-            <span className="hidden sm:inline">License</span>
-          </a>
+          />
         )}
       </div>
     </li>
+  )
+}
+
+function SpinnerIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="animate-spin">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="28" strokeDashoffset="10" />
+    </svg>
   )
 }
 

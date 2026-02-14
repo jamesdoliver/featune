@@ -56,6 +56,8 @@ function SearchPageContent() {
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || searchParams.get('search') || '')
   const [isAISearch, setIsAISearch] = useState(false)
   const [aiSearchActive, setAiSearchActive] = useState(false)
+  const [popularTracks, setPopularTracks] = useState<Track[]>([])
+  const [popularLoading, setPopularLoading] = useState(false)
 
   // Focus input if redirected from chat button
   useEffect(() => {
@@ -179,6 +181,26 @@ function SearchPageContent() {
       setLoading(false)
     }
   }, [searchParams])
+
+  // Fetch popular tracks for empty state
+  const fetchPopularTracks = useCallback(async () => {
+    if (popularTracks.length > 0) return
+    setPopularLoading(true)
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('tracks')
+        .select('*, creators(id, display_name)')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(4)
+      setPopularTracks((data ?? []) as Track[])
+    } catch {
+      // Silently fail - popular tracks are optional
+    } finally {
+      setPopularLoading(false)
+    }
+  }, [popularTracks.length])
 
   // Fetch tracks based on search type
   useEffect(() => {
@@ -360,24 +382,21 @@ function SearchPageContent() {
           ))}
         </div>
       ) : tracks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <svg
-            width="48"
-            height="48"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="mb-4 text-text-muted"
-          >
-            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <h2 className="text-lg font-semibold text-text-primary">No tracks found</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            {aiSearchActive
-              ? 'Try different keywords or a broader description.'
-              : 'Try adjusting your filters or search terms.'}
-          </p>
-        </div>
+        <EmptySearchState
+          aiSearchActive={aiSearchActive}
+          popularTracks={popularTracks}
+          popularLoading={popularLoading}
+          onFetchPopular={fetchPopularTracks}
+          onPlay={(track) =>
+            play({
+              id: track.id,
+              title: track.title,
+              creatorName: track.creators.display_name,
+              artworkUrl: track.artwork_url,
+              previewUrl: track.full_preview_url || track.preview_clip_url || '',
+            })
+          }
+        />
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {tracks.map((track) => (
@@ -493,6 +512,73 @@ function generatePageNumbers(
   pages.push(total)
 
   return pages
+}
+
+/** Empty state with popular tracks suggestion */
+function EmptySearchState({
+  aiSearchActive,
+  popularTracks,
+  popularLoading,
+  onFetchPopular,
+  onPlay,
+}: {
+  aiSearchActive: boolean
+  popularTracks: Track[]
+  popularLoading: boolean
+  onFetchPopular: () => void
+  onPlay: (track: Track) => void
+}) {
+  useEffect(() => {
+    onFetchPopular()
+  }, [onFetchPopular])
+
+  return (
+    <div className="flex flex-col items-center justify-center py-16">
+      <svg
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        className="mb-4 text-text-muted"
+      >
+        <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      <h2 className="text-lg font-semibold text-text-primary">No tracks found</h2>
+      <p className="mt-1 text-sm text-text-secondary">
+        {aiSearchActive
+          ? 'Try different keywords or a broader description.'
+          : 'Try adjusting your filters or search terms.'}
+      </p>
+
+      {/* Popular tracks */}
+      {(popularTracks.length > 0 || popularLoading) && (
+        <div className="mt-10 w-full">
+          <h3 className="mb-4 text-center text-sm font-semibold uppercase tracking-wider text-text-muted">
+            Popular Tracks
+          </h3>
+          {popularLoading ? (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <TrackSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {popularTracks.map((track) => (
+                <ProductCard
+                  key={track.id}
+                  track={track}
+                  showCreator
+                  onPlay={() => onPlay(track)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Loading skeleton for a product card */
