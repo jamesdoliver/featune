@@ -43,7 +43,7 @@ export default function Footer() {
             <ul className="mt-4 space-y-2">
               <li>
                 <Link
-                  href="/search?genre=pop"
+                  href="/search?genre=Pop"
                   className="text-sm text-text-muted transition-colors hover:text-text-primary"
                 >
                   Pop
@@ -51,7 +51,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/search?genre=rnb"
+                  href="/search?genre=R%26B"
                   className="text-sm text-text-muted transition-colors hover:text-text-primary"
                 >
                   R&B
@@ -59,7 +59,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/search?genre=hiphop"
+                  href="/search?genre=Hip-Hop"
                   className="text-sm text-text-muted transition-colors hover:text-text-primary"
                 >
                   Hip-Hop
@@ -67,7 +67,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/search?genre=edm"
+                  href="/search?genre=EDM"
                   className="text-sm text-text-muted transition-colors hover:text-text-primary"
                 >
                   EDM

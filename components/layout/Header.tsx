@@ -9,6 +9,7 @@ import { useCartStore } from "@/stores/cartStore";
 export default function Header() {
   const { user, profile, loading } = useUser();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const itemCount = useCartStore((state) => state.getItemCount());
@@ -54,7 +55,7 @@ export default function Header() {
           </span>
         </Link>
 
-        {/* Navigation */}
+        {/* Desktop Navigation */}
         <nav className="hidden items-center gap-8 md:flex">
           <Link
             href="/search"
@@ -72,6 +73,28 @@ export default function Header() {
 
         {/* Auth section */}
         <div className="flex items-center gap-3">
+          {/* Mobile hamburger menu */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="flex items-center justify-center text-text-secondary transition-colors hover:text-text-primary md:hidden"
+            aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
+            )}
+          </button>
+
           {/* Cart icon */}
           <button
             onClick={openDrawer}
@@ -204,6 +227,28 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {/* Mobile navigation panel */}
+      {mobileMenuOpen && (
+        <nav className="border-t border-border-default bg-bg-primary/95 backdrop-blur-xl md:hidden">
+          <div className="mx-auto max-w-7xl px-6 py-3">
+            <Link
+              href="/search"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2.5 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
+            >
+              Browse
+            </Link>
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2.5 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
+            >
+              Sell
+            </Link>
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

@@ -1,14 +1,10 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
-
-export default function ChatButton() {
-  const router = useRouter()
-
+export default function ChatButton({ onClick }: { onClick?: () => void }) {
   return (
     <button
       type="button"
-      onClick={() => router.push('/search?focus=true')}
+      onClick={onClick}
       className="fixed bottom-28 right-4 z-[50] flex h-12 w-12 items-center justify-center rounded-full bg-accent shadow-lg transition-colors hover:bg-accent-hover sm:bottom-24 sm:right-6 sm:h-14 sm:w-14"
       aria-label="Search tracks with AI"
     >

@@ -5,7 +5,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AudioPlayer from "@/components/player/AudioPlayer";
 import CartDrawer from "@/components/cart/CartDrawer";
-import ChatButton from "@/components/chat/ChatButton";
+import ChatWrapper from "@/components/chat/ChatWrapper";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,7 +39,7 @@ export default function RootLayout({
         <Footer />
         <AudioPlayer />
         <CartDrawer />
-        <ChatButton />
+        <ChatWrapper />
         <Toaster
           position="bottom-right"
           toastOptions={{

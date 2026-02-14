@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect, type KeyboardEvent } from 'react'
 
 const GENRES = ['Pop', 'R&B', 'Hip-Hop', 'EDM', 'Afrobeats']
 const MOODS = ['Energetic', 'Chill', 'Dark', 'Romantic', 'Happy']
@@ -27,6 +27,20 @@ export default function TrackFilters() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showFilters, setShowFilters] = useState(false)
+
+  // Local state for number inputs to avoid navigation on every keystroke
+  const [localBpmMin, setLocalBpmMin] = useState(searchParams.get('bpm_min') || '')
+  const [localBpmMax, setLocalBpmMax] = useState(searchParams.get('bpm_max') || '')
+  const [localPriceMin, setLocalPriceMin] = useState(searchParams.get('price_min') || '')
+  const [localPriceMax, setLocalPriceMax] = useState(searchParams.get('price_max') || '')
+
+  // Sync local state when URL params change externally (e.g. clear filters)
+  useEffect(() => {
+    setLocalBpmMin(searchParams.get('bpm_min') || '')
+    setLocalBpmMax(searchParams.get('bpm_max') || '')
+    setLocalPriceMin(searchParams.get('price_min') || '')
+    setLocalPriceMax(searchParams.get('price_max') || '')
+  }, [searchParams])
 
   const currentGenre = searchParams.get('genre') || ''
   const currentMood = searchParams.get('mood') || ''
@@ -175,8 +189,10 @@ export default function TrackFilters() {
             <input
               type="number"
               placeholder="BPM min"
-              value={currentBpmMin}
-              onChange={(e) => updateParams('bpm_min', e.target.value)}
+              value={localBpmMin}
+              onChange={(e) => setLocalBpmMin(e.target.value)}
+              onBlur={(e) => updateParams('bpm_min', e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('bpm_min', (e.target as HTMLInputElement).value) }}
               min={0}
               max={300}
               className="h-11 flex-1 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -185,8 +201,10 @@ export default function TrackFilters() {
             <input
               type="number"
               placeholder="BPM max"
-              value={currentBpmMax}
-              onChange={(e) => updateParams('bpm_max', e.target.value)}
+              value={localBpmMax}
+              onChange={(e) => setLocalBpmMax(e.target.value)}
+              onBlur={(e) => updateParams('bpm_max', e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('bpm_max', (e.target as HTMLInputElement).value) }}
               min={0}
               max={300}
               className="h-11 flex-1 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -197,8 +215,10 @@ export default function TrackFilters() {
             <input
               type="number"
               placeholder="$ min"
-              value={currentPriceMin}
-              onChange={(e) => updateParams('price_min', e.target.value)}
+              value={localPriceMin}
+              onChange={(e) => setLocalPriceMin(e.target.value)}
+              onBlur={(e) => updateParams('price_min', e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('price_min', (e.target as HTMLInputElement).value) }}
               min={0}
               className="h-11 flex-1 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
@@ -206,8 +226,10 @@ export default function TrackFilters() {
             <input
               type="number"
               placeholder="$ max"
-              value={currentPriceMax}
-              onChange={(e) => updateParams('price_max', e.target.value)}
+              value={localPriceMax}
+              onChange={(e) => setLocalPriceMax(e.target.value)}
+              onBlur={(e) => updateParams('price_max', e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('price_max', (e.target as HTMLInputElement).value) }}
               min={0}
               className="h-11 flex-1 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
@@ -300,8 +322,10 @@ export default function TrackFilters() {
           <input
             type="number"
             placeholder="BPM min"
-            value={currentBpmMin}
-            onChange={(e) => updateParams('bpm_min', e.target.value)}
+            value={localBpmMin}
+            onChange={(e) => setLocalBpmMin(e.target.value)}
+            onBlur={(e) => updateParams('bpm_min', e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('bpm_min', (e.target as HTMLInputElement).value) }}
             min={0}
             max={300}
             className="h-10 w-24 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -310,8 +334,10 @@ export default function TrackFilters() {
           <input
             type="number"
             placeholder="BPM max"
-            value={currentBpmMax}
-            onChange={(e) => updateParams('bpm_max', e.target.value)}
+            value={localBpmMax}
+            onChange={(e) => setLocalBpmMax(e.target.value)}
+            onBlur={(e) => updateParams('bpm_max', e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('bpm_max', (e.target as HTMLInputElement).value) }}
             min={0}
             max={300}
             className="h-10 w-24 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -348,8 +374,10 @@ export default function TrackFilters() {
           <input
             type="number"
             placeholder="$ min"
-            value={currentPriceMin}
-            onChange={(e) => updateParams('price_min', e.target.value)}
+            value={localPriceMin}
+            onChange={(e) => setLocalPriceMin(e.target.value)}
+            onBlur={(e) => updateParams('price_min', e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('price_min', (e.target as HTMLInputElement).value) }}
             min={0}
             className="h-10 w-20 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
@@ -357,8 +385,10 @@ export default function TrackFilters() {
           <input
             type="number"
             placeholder="$ max"
-            value={currentPriceMax}
-            onChange={(e) => updateParams('price_max', e.target.value)}
+            value={localPriceMax}
+            onChange={(e) => setLocalPriceMax(e.target.value)}
+            onBlur={(e) => updateParams('price_max', e.target.value)}
+            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') updateParams('price_max', (e.target as HTMLInputElement).value) }}
             min={0}
             className="h-10 w-20 rounded-lg border border-border-default bg-bg-elevated px-3 text-sm text-text-primary placeholder:text-text-muted outline-none transition-colors focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />

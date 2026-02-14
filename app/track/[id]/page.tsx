@@ -101,6 +101,24 @@ export default async function TrackPage({
       creators: Array.isArray(t.creators) ? t.creators[0] : t.creators,
     }))
 
+  // Check if the authenticated user has already purchased this track
+  let isPurchased = false
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) {
+    const { data: purchasedItems } = await supabase
+      .from('orders')
+      .select('order_items!inner(track_id)')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .eq('order_items.track_id', id)
+      .limit(1)
+
+    isPurchased = (purchasedItems?.length ?? 0) > 0
+  }
+
   const trackData = {
     ...track,
     creators: creator as {
@@ -111,5 +129,5 @@ export default async function TrackPage({
     },
   }
 
-  return <TrackClient track={trackData} relatedTracks={relatedTracks} />
+  return <TrackClient track={trackData} relatedTracks={relatedTracks} isPurchased={isPurchased} />
 }

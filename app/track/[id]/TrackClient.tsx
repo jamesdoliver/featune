@@ -61,6 +61,7 @@ interface TrackData {
 interface TrackClientProps {
   track: TrackData
   relatedTracks?: RelatedTrack[]
+  isPurchased?: boolean
 }
 
 function formatDuration(seconds: number): string {
@@ -87,7 +88,7 @@ function getLicenseLabel(track: TrackData): string {
   return ''
 }
 
-export default function TrackClient({ track, relatedTracks = [] }: TrackClientProps) {
+export default function TrackClient({ track, relatedTracks = [], isPurchased = false }: TrackClientProps) {
   const [lyricsExpanded, setLyricsExpanded] = useState(false)
 
   const play = usePlayerStore((state) => state.play)
@@ -312,6 +313,11 @@ export default function TrackClient({ track, relatedTracks = [] }: TrackClientPr
 
           {/* Metadata Tags */}
           <div className="flex flex-wrap gap-2">
+            {isPurchased && (
+              <span className="rounded-full bg-green-900/30 px-3 py-1 text-xs font-medium text-green-400">
+                Purchased
+              </span>
+            )}
             {tags.map((tag) => (
               <span
                 key={tag.label}
@@ -369,70 +375,90 @@ export default function TrackClient({ track, relatedTracks = [] }: TrackClientPr
           )}
 
           {/* Pricing & Add to Cart */}
-          <div className="rounded-xl border border-border-default bg-bg-card p-4">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-text-muted">
-              Pricing
-            </h3>
-
-            {/* Non-Exclusive */}
-            {track.price_non_exclusive != null && (
-              <div className="mb-4">
-                <div className="mb-2 flex items-baseline justify-between">
-                  <span className="text-sm text-text-secondary">Non-Exclusive License</span>
-                  <span className="text-lg font-bold text-accent">
-                    {formatPrice(track.price_non_exclusive)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddToCart('non_exclusive')}
-                  disabled={isSoldOut}
-                  className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-colors sm:py-3 ${
-                    isSoldOut
-                      ? 'cursor-not-allowed bg-bg-elevated text-text-muted'
-                      : 'bg-accent text-white hover:bg-accent-hover'
-                  }`}
-                >
-                  {isSoldOut ? 'Sold Out' : 'Add to Cart'}
-                </button>
+          {isPurchased ? (
+            <div className="rounded-xl border border-success/30 bg-success/10 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-success">
+                  <path d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-semibold text-success">Purchased</span>
               </div>
-            )}
-
-            {/* Exclusive */}
-            {track.price_exclusive != null && (
-              <div
-                className={
-                  track.price_non_exclusive != null
-                    ? 'border-t border-border-default pt-4'
-                    : ''
-                }
+              <p className="mb-4 text-xs text-text-secondary">
+                You already own a license for this track. Download your files from your purchases page.
+              </p>
+              <Link
+                href="/account/purchases"
+                className="flex w-full items-center justify-center rounded-lg bg-success py-3 text-sm font-semibold text-white transition-colors hover:bg-success/90"
               >
-                <div className="mb-2 flex items-baseline justify-between">
-                  <span className="text-sm text-text-secondary">Exclusive License</span>
-                  <span className="text-lg font-bold text-accent">
-                    {formatPrice(track.price_exclusive)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddToCart('exclusive')}
-                  disabled={isSoldOut}
-                  className={`w-full rounded-lg border py-3.5 text-sm font-semibold transition-colors sm:py-3 ${
-                    isSoldOut
-                      ? 'cursor-not-allowed border-border-default bg-transparent text-text-muted'
-                      : 'border-accent bg-transparent text-accent hover:bg-accent hover:text-white'
-                  }`}
-                >
-                  {isSoldOut ? 'Sold Out' : 'Buy Exclusive'}
-                </button>
-              </div>
-            )}
+                Go to Downloads
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border-default bg-bg-card p-4">
+              <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Pricing
+              </h3>
 
-            {/* Fallback if no prices */}
-            {track.price_non_exclusive == null && track.price_exclusive == null && (
-              <p className="text-sm text-text-muted">Price not available</p>
-            )}
-          </div>
+              {/* Non-Exclusive */}
+              {track.price_non_exclusive != null && (
+                <div className="mb-4">
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <span className="text-sm text-text-secondary">Non-Exclusive License</span>
+                    <span className="text-lg font-bold text-accent">
+                      {formatPrice(track.price_non_exclusive)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart('non_exclusive')}
+                    disabled={isSoldOut}
+                    className={`w-full rounded-lg py-3.5 text-sm font-semibold transition-colors sm:py-3 ${
+                      isSoldOut
+                        ? 'cursor-not-allowed bg-bg-elevated text-text-muted'
+                        : 'bg-accent text-white hover:bg-accent-hover'
+                    }`}
+                  >
+                    {isSoldOut ? 'Sold Out' : 'Add to Cart'}
+                  </button>
+                </div>
+              )}
+
+              {/* Exclusive */}
+              {track.price_exclusive != null && (
+                <div
+                  className={
+                    track.price_non_exclusive != null
+                      ? 'border-t border-border-default pt-4'
+                      : ''
+                  }
+                >
+                  <div className="mb-2 flex items-baseline justify-between">
+                    <span className="text-sm text-text-secondary">Exclusive License</span>
+                    <span className="text-lg font-bold text-accent">
+                      {formatPrice(track.price_exclusive)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAddToCart('exclusive')}
+                    disabled={isSoldOut}
+                    className={`w-full rounded-lg border py-3.5 text-sm font-semibold transition-colors sm:py-3 ${
+                      isSoldOut
+                        ? 'cursor-not-allowed border-border-default bg-transparent text-text-muted'
+                        : 'border-accent bg-transparent text-accent hover:bg-accent hover:text-white'
+                    }`}
+                  >
+                    {isSoldOut ? 'Sold Out' : 'Buy Exclusive'}
+                  </button>
+                </div>
+              )}
+
+              {/* Fallback if no prices */}
+              {track.price_non_exclusive == null && track.price_exclusive == null && (
+                <p className="text-sm text-text-muted">Price not available</p>
+              )}
+            </div>
+          )}
 
           {/* Additional Info */}
           <div className="text-xs text-text-muted">
