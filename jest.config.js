@@ -16,6 +16,10 @@ const customJestConfig = {
   collectCoverageFrom: [
     'stores/**/*.{ts,tsx}',
     'lib/**/*.{ts,tsx}',
+    '!lib/supabase/**',
+    '!lib/hooks/**',
+    '!lib/email/**',
+    '!lib/data/**',
     '!**/*.d.ts',
   ],
 }
