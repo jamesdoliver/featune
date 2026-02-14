@@ -1,29 +1,13 @@
 import { NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
   try {
+    const { user, error: authError } = await requireAdmin()
+    if (authError) return authError
+
     const supabase = await createClient()
-
-    // Auth check
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Admin check
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     // Fetch all payouts with creator display names
     const { data: rawPayouts, error } = await supabase

@@ -4,6 +4,25 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const SIGNED_URL_EXPIRY = 3600 // 1 hour in seconds
 
+// Simple per-user rate limiter: max 30 downloads per 10 minutes
+const RATE_LIMIT_MAX = 30
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const downloadRequests = new Map<string, number[]>()
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = (downloadRequests.get(userId) ?? []).filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS
+  )
+  if (timestamps.length >= RATE_LIMIT_MAX) {
+    downloadRequests.set(userId, timestamps)
+    return true
+  }
+  timestamps.push(now)
+  downloadRequests.set(userId, timestamps)
+  return false
+}
+
 type FileType = 'acapella' | 'instrumental' | 'license' | 'lyrics'
 
 function isValidFileType(type: string | null): type is FileType {
@@ -33,6 +52,13 @@ export async function GET(
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (isRateLimited(user.id)) {
+    return NextResponse.json(
+      { error: 'Too many download requests. Please try again later.' },
+      { status: 429 }
+    )
   }
 
   // Verify user has purchased this track

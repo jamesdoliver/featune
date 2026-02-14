@@ -831,6 +831,7 @@ function StepFiles({
           <input
             type="number"
             min={0}
+            max={600}
             value={files.preview_clip_start}
             onChange={(e) => onPreviewStartChange(e.target.value)}
             placeholder="0"

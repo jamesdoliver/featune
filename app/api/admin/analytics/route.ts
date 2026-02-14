@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -29,25 +30,10 @@ function getPreviousPeriodDate(range: TimeRange, startDate: Date | null): Date |
 }
 
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await requireAdmin()
+  if (authError) return authError
+
   const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_admin) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
 
   const searchParams = request.nextUrl.searchParams
   const range = (searchParams.get('range') || '30d') as TimeRange

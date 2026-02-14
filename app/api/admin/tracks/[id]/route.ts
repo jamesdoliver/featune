@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { requireAdmin } from '@/lib/admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 // GET: Fetch a single track for editing (admin only)
@@ -10,26 +10,8 @@ export async function GET(
   try {
     const { id } = await params
 
-    // Auth check
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Admin check
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const { user, error: authError } = await requireAdmin()
+    if (authError) return authError
 
     // Use admin client to fetch track (bypasses RLS)
     const adminClient = createAdminClient()
@@ -69,26 +51,8 @@ export async function PATCH(
   try {
     const { id } = await params
 
-    // Auth check
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Admin check
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const { user, error: authError } = await requireAdmin()
+    if (authError) return authError
 
     const body = await request.json()
 

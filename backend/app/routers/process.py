@@ -71,6 +71,7 @@ def _upload_to_supabase(file_path: str, bucket: str, object_path: str) -> str:
 
 
 MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
+MAX_PREVIEW_CLIP_START = 600  # 10 minutes – sanity cap
 ALLOWED_AUDIO_TYPES = {
     "audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav",
     "audio/wave", "audio/x-pn-wav", "audio/aiff", "audio/x-aiff",
@@ -138,6 +139,13 @@ async def process_upload(
 
     Returns a JSON object with paths/data for each artefact.
     """
+    # Validate preview_clip_start
+    if preview_clip_start < 0 or preview_clip_start > MAX_PREVIEW_CLIP_START:
+        raise HTTPException(
+            status_code=422,
+            detail=f"preview_clip_start must be between 0 and {MAX_PREVIEW_CLIP_START}",
+        )
+
     # Validate track_id if provided
     if track_id is not None:
         try:

@@ -157,8 +157,8 @@ function mergeTracksForSection(
   return result.filter((t): t is TrackData => t !== null)
 }
 
-// ISR: Revalidate homepage every 5 minutes
-export const revalidate = 300
+// ISR: Revalidate homepage every 60 seconds
+export const revalidate = 60
 
 export default async function Home() {
   const supabase = await createClient()

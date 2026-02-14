@@ -76,16 +76,42 @@ BLOCKED_OUTPUT_PATTERNS = [
 # ---------------------------------------------------------------------------
 
 class RateLimiter:
-    """Simple in-memory rate limiter by client IP."""
+    """In-memory rate limiter by client IP.
 
-    def __init__(self, max_requests: int = 20, window_seconds: int = 60):
+    NOTE: This is per-process only. If the backend is scaled to multiple
+    instances behind a load balancer, replace with a Redis-backed limiter
+    (e.g. ``fastapi-limiter`` with ``redis-py``) so limits are shared.
+    """
+
+    def __init__(
+        self,
+        max_requests: int = 20,
+        window_seconds: int = 60,
+        cleanup_threshold: int = 1000,
+    ):
         self.max_requests = max_requests
         self.window = window_seconds
+        self._cleanup_threshold = cleanup_threshold
         self.requests: dict[str, list[float]] = defaultdict(list)
+
+    def _cleanup_stale_entries(self) -> None:
+        """Remove IPs with no recent requests to prevent unbounded growth."""
+        now = time()
+        stale_keys = [
+            ip for ip, timestamps in self.requests.items()
+            if not timestamps or (now - timestamps[-1]) > self.window
+        ]
+        for key in stale_keys:
+            del self.requests[key]
 
     def is_allowed(self, client_ip: str) -> bool:
         """Check if request is allowed under rate limit."""
         now = time()
+
+        # Periodic cleanup to prevent memory leaks
+        if len(self.requests) > self._cleanup_threshold:
+            self._cleanup_stale_entries()
+
         # Clean old requests outside window
         self.requests[client_ip] = [
             t for t in self.requests[client_ip]

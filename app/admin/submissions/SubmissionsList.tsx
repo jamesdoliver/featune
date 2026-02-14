@@ -13,10 +13,77 @@ export default function SubmissionsList({
 }: SubmissionsListProps) {
   const [tracks, setTracks] = useState<PendingTrack[]>(initialTracks)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [bulkLoading, setBulkLoading] = useState(false)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const play = usePlayerStore((state) => state.play)
+
+  function toggleSelect(trackId: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(trackId)) next.delete(trackId)
+      else next.add(trackId)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === tracks.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(tracks.map((t) => t.id)))
+    }
+  }
+
+  async function handleBulkApprove() {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Approve ${selectedIds.size} track(s)?`)) return
+    setBulkLoading(true)
+    const ids = [...selectedIds]
+    const failed: string[] = []
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const res = await fetch(`/api/admin/tracks/${id}/approve`, { method: 'PATCH' })
+          if (!res.ok) failed.push(id)
+        } catch {
+          failed.push(id)
+        }
+      })
+    )
+    setTracks((prev) => prev.filter((t) => failed.includes(t.id)))
+    setSelectedIds(new Set(failed))
+    setBulkLoading(false)
+    if (failed.length > 0) alert(`${failed.length} track(s) failed to approve.`)
+  }
+
+  async function handleBulkReject() {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Reject ${selectedIds.size} track(s)?`)) return
+    setBulkLoading(true)
+    const ids = [...selectedIds]
+    const failed: string[] = []
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const res = await fetch(`/api/admin/tracks/${id}/reject`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          })
+          if (!res.ok) failed.push(id)
+        } catch {
+          failed.push(id)
+        }
+      })
+    )
+    setTracks((prev) => prev.filter((t) => failed.includes(t.id)))
+    setSelectedIds(new Set(failed))
+    setBulkLoading(false)
+    if (failed.length > 0) alert(`${failed.length} track(s) failed to reject.`)
+  }
 
   async function handleApprove(trackId: string) {
     setLoadingId(trackId)
@@ -25,8 +92,8 @@ export default function SubmissionsList({
         method: 'PATCH',
       })
       if (res.ok) {
-        // Optimistic: remove from list
         setTracks((prev) => prev.filter((t) => t.id !== trackId))
+        setSelectedIds((prev) => { const next = new Set(prev); next.delete(trackId); return next })
       } else {
         const data = await res.json()
         alert(data.error ?? 'Failed to approve track')
@@ -47,8 +114,8 @@ export default function SubmissionsList({
         body: JSON.stringify({ reason: rejectReason.trim() || undefined }),
       })
       if (res.ok) {
-        // Optimistic: remove from list
         setTracks((prev) => prev.filter((t) => t.id !== trackId))
+        setSelectedIds((prev) => { const next = new Set(prev); next.delete(trackId); return next })
         setRejectingId(null)
         setRejectReason('')
       } else {
@@ -89,9 +156,48 @@ export default function SubmissionsList({
 
   return (
     <div className="space-y-4">
+      {/* Bulk action bar */}
+      <div className="flex items-center gap-3 rounded-xl border border-border-default bg-bg-card px-4 py-3">
+        <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
+          <input
+            type="checkbox"
+            checked={tracks.length > 0 && selectedIds.size === tracks.length}
+            onChange={toggleSelectAll}
+            className="h-4 w-4 rounded border-border-default accent-accent"
+          />
+          {selectedIds.size > 0
+            ? `${selectedIds.size} selected`
+            : 'Select all'}
+        </label>
+
+        {selectedIds.size > 0 && (
+          <>
+            <button
+              type="button"
+              onClick={handleBulkApprove}
+              disabled={bulkLoading}
+              className="ml-2 inline-flex items-center gap-1.5 rounded-lg bg-success/20 px-3 py-1.5 text-sm font-medium text-success transition-colors hover:bg-success/30 disabled:opacity-50"
+            >
+              <CheckIcon className="h-3.5 w-3.5" />
+              Approve Selected
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkReject}
+              disabled={bulkLoading}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-error/20 px-3 py-1.5 text-sm font-medium text-error transition-colors hover:bg-error/30 disabled:opacity-50"
+            >
+              <XIcon className="h-3.5 w-3.5" />
+              Reject Selected
+            </button>
+          </>
+        )}
+      </div>
+
       {tracks.map((track) => {
         const isLoading = loadingId === track.id
         const isRejecting = rejectingId === track.id
+        const isSelected = selectedIds.has(track.id)
 
         const tags: string[] = []
         if (track.genre) tags.push(track.genre)
@@ -102,9 +208,21 @@ export default function SubmissionsList({
         return (
           <div
             key={track.id}
-            className="rounded-xl border border-border-default bg-bg-elevated p-5 transition-colors hover:border-border-hover"
+            className={`rounded-xl border bg-bg-elevated p-5 transition-colors hover:border-border-hover ${
+              isSelected ? 'border-accent/50' : 'border-border-default'
+            }`}
           >
             <div className="flex gap-4">
+              {/* Checkbox */}
+              <div className="flex items-start pt-1">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelect(track.id)}
+                  className="h-4 w-4 rounded border-border-default accent-accent cursor-pointer"
+                />
+              </div>
+
               {/* Artwork thumbnail */}
               <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg">
                 {track.artwork_url ? (
