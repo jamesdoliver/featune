@@ -3,17 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import dynamic from "next/dynamic";
-
-const AudioPlayer = dynamic(() => import("@/components/player/AudioPlayer"), {
-  ssr: false,
-});
-const CartDrawer = dynamic(() => import("@/components/cart/CartDrawer"), {
-  ssr: false,
-});
-const ChatWrapper = dynamic(() => import("@/components/chat/ChatWrapper"), {
-  ssr: false,
-});
+import ClientOverlays from "@/components/layout/ClientOverlays";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -45,9 +35,7 @@ export default function RootLayout({
         <Header />
         <main className="min-h-screen pt-16 pb-20">{children}</main>
         <Footer />
-        <AudioPlayer />
-        <CartDrawer />
-        <ChatWrapper />
+        <ClientOverlays />
         <Toaster
           position="bottom-right"
           toastOptions={{

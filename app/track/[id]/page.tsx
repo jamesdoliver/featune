@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import TrackClient from './TrackClient'
 
 export const revalidate = 300 // Revalidate every 5 minutes
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export async function generateStaticParams() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: tracks } = await supabase
     .from('tracks')
