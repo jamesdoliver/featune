@@ -165,7 +165,7 @@ export default function Header() {
                   {/* Menu items */}
                   <div className="py-1">
                     <Link
-                      href="/account"
+                      href="/account/library"
                       onClick={() => setDropdownOpen(false)}
                       className="block px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary"
                     >

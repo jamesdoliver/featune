@@ -384,10 +384,10 @@ export default function TrackClient({ track, relatedTracks = [], isPurchased = f
                 <span className="text-sm font-semibold text-success">Purchased</span>
               </div>
               <p className="mb-4 text-xs text-text-secondary">
-                You already own a license for this track. Download your files from your purchases page.
+                You already own a license for this track. Download your files from your library.
               </p>
               <Link
-                href="/account/purchases"
+                href="/account/library"
                 className="flex w-full items-center justify-center rounded-lg bg-success py-3 text-sm font-semibold text-white transition-colors hover:bg-success/90"
               >
                 Go to Downloads

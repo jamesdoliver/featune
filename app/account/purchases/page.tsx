@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 import OrderList from './OrderList'
+import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Purchase History - FEATUNE',
+  title: 'Order History - FEATUNE',
   description: 'View your order history and download purchased tracks.',
 }
 
@@ -37,36 +37,11 @@ export default async function PurchaseHistoryPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-6 py-12">
-      {/* Back link + heading */}
-      <div className="mb-8">
-        <Link
-          href="/account"
-          className="inline-flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="shrink-0"
-          >
-            <path
-              d="M10 12L6 8L10 4"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Back to Account
-        </Link>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-text-primary">
-          Purchase History
-        </h1>
-      </div>
+    <div>
+      <h1 className="mb-6 text-2xl font-bold tracking-tight text-text-primary">
+        Order History
+      </h1>
 
-      {/* Order list or empty state */}
       {orders && orders.length > 0 ? (
         <OrderList orders={orders} />
       ) : (
