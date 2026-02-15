@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import TrackClient from './TrackClient'
 
+export const revalidate = 300 // Revalidate every 5 minutes
+
 type Props = { params: Promise<{ id: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -39,6 +41,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return metadata
+}
+
+export async function generateStaticParams() {
+  const supabase = await createClient()
+
+  const { data: tracks } = await supabase
+    .from('tracks')
+    .select('id')
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  return (tracks ?? []).map((track) => ({ id: track.id }))
 }
 
 export default async function TrackPage({

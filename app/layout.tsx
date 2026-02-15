@@ -3,9 +3,17 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import AudioPlayer from "@/components/player/AudioPlayer";
-import CartDrawer from "@/components/cart/CartDrawer";
-import ChatWrapper from "@/components/chat/ChatWrapper";
+import dynamic from "next/dynamic";
+
+const AudioPlayer = dynamic(() => import("@/components/player/AudioPlayer"), {
+  ssr: false,
+});
+const CartDrawer = dynamic(() => import("@/components/cart/CartDrawer"), {
+  ssr: false,
+});
+const ChatWrapper = dynamic(() => import("@/components/chat/ChatWrapper"), {
+  ssr: false,
+});
 import "./globals.css";
 
 const geistSans = Geist({

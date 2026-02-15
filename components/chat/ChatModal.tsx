@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, FormEvent } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 
 // ---------------------------------------------------------------------------
@@ -321,9 +322,11 @@ export default function ChatModal({ isOpen, onClose }: ChatModalProps) {
                   {/* Artwork */}
                   <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md bg-bg-card">
                     {track.artwork_url ? (
-                      <img
+                      <Image
                         src={track.artwork_url}
                         alt={track.title}
+                        width={48}
+                        height={48}
                         className="h-full w-full object-cover"
                       />
                     ) : (

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { toast } from 'sonner'
 import { usePlayerStore, type PlayerTrack } from '@/stores/playerStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -191,12 +192,15 @@ export default function TrackClient({ track, relatedTracks = [], isPurchased = f
         {/* Left Column - Artwork, Waveform, Lyrics (60%) */}
         <div className="flex flex-col gap-4 sm:gap-6 lg:col-span-3">
           {/* Artwork */}
-          <div className="aspect-square w-full overflow-hidden rounded-xl border border-border-default">
+          <div className="relative aspect-square w-full overflow-hidden rounded-xl border border-border-default">
             {track.artwork_url ? (
-              <img
+              <Image
                 src={track.artwork_url}
                 alt={track.title}
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 60vw"
+                priority
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-bg-elevated">

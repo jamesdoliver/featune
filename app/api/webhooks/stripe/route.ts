@@ -103,6 +103,19 @@ async function handleCheckoutSessionCompleted(
     return
   }
 
+  // Guard against duplicate webhook deliveries
+  const supabase = createAdminClient()
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('stripe_payment_intent', session.id)
+    .maybeSingle()
+
+  if (existingOrder) {
+    console.log('Webhook already processed for session', session.id)
+    return
+  }
+
   // Reassemble items from chunked metadata keys (items_0, items_1, …)
   // with fallback to legacy single `items` key.
   const userId = metadata.userId
@@ -125,8 +138,6 @@ async function handleCheckoutSessionCompleted(
   const subtotal = parseFloat(metadata.subtotal) || 0
   const total = parseFloat(metadata.total) || 0
   const discountAmount = subtotal - total
-
-  const supabase = createAdminClient()
 
   // ------------------------------------------------------------------
   // 3. Create order record
@@ -269,9 +280,17 @@ async function handleCheckoutSessionCompleted(
             .update({ license_pdf_url: licensePdfUrl })
             .eq('id', orderItem.id)
         } catch (pdfErr) {
+          const errorMessage = pdfErr instanceof Error ? pdfErr.message : 'Unknown error'
           console.error(
-            `Failed to generate/upload license PDF for track ${item.trackId}:`,
-            pdfErr
+            '[PDF_GENERATION_FAILED]',
+            JSON.stringify({
+              orderId: order.id,
+              orderItemId: orderItem.id,
+              trackId: item.trackId,
+              trackTitle: track.title,
+              buyerEmail,
+              error: errorMessage,
+            })
           )
           // Mark the order item so admins can identify and regenerate failed PDFs
           await supabase

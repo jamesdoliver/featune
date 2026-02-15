@@ -4,6 +4,25 @@ import { getStripe } from '@/lib/stripe/helpers'
 import { calculateDiscount } from '@/lib/pricing'
 import type { OrderLicenseType } from '@/lib/types/database'
 
+// Simple per-user rate limiter: max 5 checkout attempts per 10 minutes
+const CHECKOUT_RATE_LIMIT_MAX = 5
+const CHECKOUT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const checkoutRequests = new Map<string, number[]>()
+
+function isCheckoutRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const timestamps = (checkoutRequests.get(userId) ?? []).filter(
+    (t) => now - t < CHECKOUT_RATE_LIMIT_WINDOW_MS
+  )
+  if (timestamps.length >= CHECKOUT_RATE_LIMIT_MAX) {
+    checkoutRequests.set(userId, timestamps)
+    return true
+  }
+  timestamps.push(now)
+  checkoutRequests.set(userId, timestamps)
+  return false
+}
+
 interface CartItem {
   trackId: string
   licenseType: OrderLicenseType
@@ -27,6 +46,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'Authentication required' },
       { status: 401 }
+    )
+  }
+
+  if (isCheckoutRateLimited(user.id)) {
+    return NextResponse.json(
+      { error: 'Too many checkout attempts. Please try again later.' },
+      { status: 429 }
     )
   }
 
