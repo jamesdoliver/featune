@@ -36,20 +36,14 @@ interface RequestBody {
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
 
-  // 1. Authenticate user
+  // 1. Authenticate user (optional — guests can checkout too)
   const {
     data: { user },
-    error: authError,
   } = await supabase.auth.getUser()
 
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    )
-  }
-
-  if (isCheckoutRateLimited(user.id)) {
+  // Rate limit: use user ID if logged in, IP if guest
+  const rateLimitKey = user?.id || request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (isCheckoutRateLimited(rateLimitKey)) {
     return NextResponse.json(
       { error: 'Too many checkout attempts. Please try again later.' },
       { status: 429 }
@@ -274,7 +268,7 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       line_items: stripeLineItems,
       metadata: {
-        userId: user.id,
+        ...(user ? { userId: user.id } : { guestCheckout: 'true' }),
         ...itemChunks,
         itemChunkCount: String(chunkIndex + 1),
         discountPercent: String(discountPercent * 100),
@@ -283,7 +277,7 @@ export async function POST(request: NextRequest) {
       },
       success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/cart`,
-      customer_email: user.email,
+      ...(user?.email ? { customer_email: user.email } : {}),
     })
 
     return NextResponse.json({ url: session.url })

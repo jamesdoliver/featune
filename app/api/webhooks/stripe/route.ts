@@ -6,6 +6,7 @@ import { generateLicensePDF, uploadLicensePDF } from '@/lib/pdf/license'
 import {
   sendPurchaseConfirmation,
   sendCreatorSaleNotification,
+  sendWelcomeEmail,
 } from '@/lib/email'
 import type { OrderLicenseType } from '@/lib/types/database'
 
@@ -23,7 +24,8 @@ interface MetadataItem {
 }
 
 interface SessionMetadata {
-  userId: string
+  userId?: string
+  guestCheckout?: string
   // Items may be in a single `items` key (legacy) or chunked across
   // `items_0`, `items_1`, … with `itemChunkCount` indicating how many.
   items?: string
@@ -98,7 +100,7 @@ async function handleCheckoutSessionCompleted(
 ) {
   const metadata = session.metadata as unknown as SessionMetadata | null
 
-  if (!metadata?.userId) {
+  if (!metadata?.userId && metadata?.guestCheckout !== 'true') {
     console.error('Missing required metadata on checkout session', session.id)
     return
   }
@@ -116,9 +118,64 @@ async function handleCheckoutSessionCompleted(
     return
   }
 
+  // ------------------------------------------------------------------
+  // 2b. Resolve user ID (existing user or auto-create for guests)
+  // ------------------------------------------------------------------
+  let userId: string
+  let buyerEmail: string
+  let buyerName: string
+  let isGuestCheckout = false
+
+  if (metadata.guestCheckout === 'true') {
+    isGuestCheckout = true
+    buyerEmail = session.customer_details?.email || ''
+    buyerName = session.customer_details?.name || 'Customer'
+
+    if (!buyerEmail) {
+      console.error('Guest checkout missing email', session.id)
+      return
+    }
+
+    // Check if a user with this email already exists
+    const { data: existingUsers } = await supabase.auth.admin.listUsers()
+    const existingUser = existingUsers?.users?.find(
+      (u) => u.email === buyerEmail
+    )
+
+    if (existingUser) {
+      userId = existingUser.id
+    } else {
+      // Create account with random password — user will reset via email
+      const tempPassword = crypto.randomUUID() + crypto.randomUUID()
+      const { data: newUser, error: createError } =
+        await supabase.auth.admin.createUser({
+          email: buyerEmail,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: { full_name: buyerName },
+        })
+
+      if (createError || !newUser.user) {
+        console.error('Failed to create guest account:', createError)
+        return
+      }
+      userId = newUser.user.id
+    }
+  } else {
+    userId = metadata.userId!
+
+    const { data: buyerProfile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', userId)
+      .single()
+
+    buyerName = buyerProfile?.full_name || 'Customer'
+    buyerEmail = buyerProfile?.email || session.customer_email || ''
+  }
+
   // Reassemble items from chunked metadata keys (items_0, items_1, …)
   // with fallback to legacy single `items` key.
-  const userId = metadata.userId
   let items: MetadataItem[]
 
   if (metadata.itemChunkCount) {
@@ -160,18 +217,6 @@ async function handleCheckoutSessionCompleted(
     console.error('Failed to create order:', orderError)
     throw new Error(`Failed to create order: ${orderError?.message}`)
   }
-
-  // ------------------------------------------------------------------
-  // 4. Fetch buyer profile for license PDF / emails
-  // ------------------------------------------------------------------
-  const { data: buyerProfile } = await supabase
-    .from('profiles')
-    .select('email, full_name')
-    .eq('id', userId)
-    .single()
-
-  const buyerName = buyerProfile?.full_name || 'Customer'
-  const buyerEmail = buyerProfile?.email || session.customer_email || ''
 
   // ------------------------------------------------------------------
   // 5. Process each item
@@ -358,6 +403,15 @@ async function handleCheckoutSessionCompleted(
     // Sale notification to each creator
     for (const notification of creatorNotifications) {
       await sendCreatorSaleNotification(notification)
+    }
+
+    // For guest checkouts: send welcome email + password reset link
+    if (isGuestCheckout && buyerEmail) {
+      await sendWelcomeEmail({ to: buyerEmail, name: buyerName })
+      await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email: buyerEmail,
+      })
     }
   } catch (emailErr) {
     console.error('Error sending emails:', emailErr)

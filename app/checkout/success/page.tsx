@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import SuccessDownloads from './SuccessDownloads'
@@ -53,19 +52,19 @@ export default async function CheckoutSuccessPage({
     )
   }
 
-  // Authenticate user
+  // Check auth (optional — guests may not be logged in yet)
   const supabase = await createClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/login')
-  }
+  // Use admin client to bypass RLS for guest checkout success pages
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const adminSupabase = createAdminClient()
 
-  // Fetch order by Stripe session ID, ensuring it belongs to the authenticated user
-  const { data: order } = await supabase
+  // Fetch order by Stripe session ID. If user is authenticated, also verify ownership.
+  let orderQuery = adminSupabase
     .from('orders')
     .select(
       `
@@ -100,8 +99,13 @@ export default async function CheckoutSuccessPage({
     `
     )
     .eq('stripe_payment_intent', session_id)
-    .eq('user_id', user.id)
-    .single()
+
+  if (user) {
+    orderQuery = orderQuery.eq('user_id', user.id)
+  }
+
+  const { data: order } = await orderQuery.single()
+  const isGuest = !user
 
   if (!order) {
     return (
@@ -217,6 +221,21 @@ export default async function CheckoutSuccessPage({
           Order placed on {orderDate}
         </p>
       </div>
+
+      {/* Guest account banner */}
+      {isGuest && (
+        <div className="mt-6 rounded-xl border border-accent/30 bg-accent-muted p-4 text-center">
+          <p className="text-sm font-medium text-text-primary">
+            An account has been created for you. Check your email to set a password and access your library.
+          </p>
+          <Link
+            href="/login"
+            className="mt-2 inline-block text-sm font-semibold text-accent transition-colors hover:text-accent-hover"
+          >
+            Log in to your account
+          </Link>
+        </div>
+      )}
 
       {/* Order items card */}
       <div className="mt-10 rounded-xl border border-border-default bg-bg-card">

@@ -555,11 +555,25 @@ export async function sendNewSubmissionEmail(params: NewSubmissionEmailParams): 
 
 export interface CreatorApplicationEmailParams {
   creatorName: string
+  sampleTrackUrl?: string
 }
 
 export async function sendCreatorApplicationEmail(params: CreatorApplicationEmailParams): Promise<void> {
-  const { creatorName } = params
+  const { creatorName, sampleTrackUrl } = params
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@featune.com'
+
+  const sampleTrackSection = sampleTrackUrl
+    ? `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#222222;border-radius:8px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px;">
+          <span style="font-size:12px;color:#666666;text-transform:uppercase;letter-spacing:0.5px;">Sample Track</span>
+          <br/>
+          <a href="${sampleTrackUrl}" style="font-size:14px;color:#FF6B00;text-decoration:none;">Listen to sample &rarr;</a>
+        </td>
+      </tr>
+    </table>`
+    : ''
 
   const content = `
     <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#FFFFFF;">New creator application</h1>
@@ -576,6 +590,8 @@ export async function sendCreatorApplicationEmail(params: CreatorApplicationEmai
         </td>
       </tr>
     </table>
+
+    ${sampleTrackSection}
 
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
       <tr>

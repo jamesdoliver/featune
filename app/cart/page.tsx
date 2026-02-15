@@ -278,10 +278,6 @@ function CartContent() {
           termsAccepted: true,
         }),
       })
-      if (response.status === 401) {
-        window.location.href = '/login?redirect=/cart'
-        return
-      }
       const data = await response.json()
       if (data.url) {
         window.location.href = data.url

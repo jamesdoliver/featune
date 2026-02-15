@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, Suspense, useRef } from 'react'
+import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ProductCard from '@/components/tracks/ProductCard'
 import TrackFilters from '@/components/tracks/TrackFilters'
@@ -53,6 +54,9 @@ function SearchPageContent() {
   const [tracks, setTracks] = useState<Track[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const currentPageRef = useRef(1)
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || searchParams.get('search') || '')
   const [isAISearch, setIsAISearch] = useState(false)
   const [aiSearchActive, setAiSearchActive] = useState(false)
@@ -162,25 +166,55 @@ function SearchPageContent() {
     }
   }, [])
 
-  // Perform traditional filter-based search
+  // Perform traditional filter-based search (always resets to page 1)
   const performTraditionalSearch = useCallback(async () => {
     setLoading(true)
     setAiSearchActive(false)
+    currentPageRef.current = 1
 
     try {
       const params = new URLSearchParams(searchParams.toString())
+      params.set('page', '1')
       const res = await fetch(`/api/tracks?${params.toString()}`)
       if (!res.ok) throw new Error('Failed to fetch tracks')
       const data = await res.json()
       setTracks(data.tracks || [])
       setPagination(data.pagination || null)
+      setHasMore((data.pagination?.page ?? 1) < (data.pagination?.totalPages ?? 1))
     } catch {
       setTracks([])
       setPagination(null)
+      setHasMore(false)
     } finally {
       setLoading(false)
     }
   }, [searchParams])
+
+  // Load more tracks (next page, appended)
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || aiSearchActive) return
+    setLoadingMore(true)
+    const nextPage = currentPageRef.current + 1
+
+    try {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('page', String(nextPage))
+      const res = await fetch(`/api/tracks?${params.toString()}`)
+      if (!res.ok) throw new Error('Failed to fetch tracks')
+      const data = await res.json()
+      currentPageRef.current = nextPage
+      setTracks((prev) => [...prev, ...(data.tracks || [])])
+      setPagination(data.pagination || null)
+      setHasMore(nextPage < (data.pagination?.totalPages ?? 1))
+    } catch {
+      // Silently fail — user can scroll again to retry
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, hasMore, aiSearchActive, searchParams])
+
+  // Sentinel ref for infinite scroll
+  const sentinelRef = useIntersectionObserver(loadMore)
 
   // Fetch popular tracks for empty state
   const fetchPopularTracks = useCallback(async () => {
@@ -242,22 +276,6 @@ function SearchPageContent() {
     },
     [router, searchInput, isNaturalLanguageQuery],
   )
-
-  const goToPage = useCallback(
-    (page: number) => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (page > 1) {
-        params.set('page', String(page))
-      } else {
-        params.delete('page')
-      }
-      router.push(`/search?${params.toString()}`)
-    },
-    [router, searchParams],
-  )
-
-  const currentPage = pagination?.page ?? 1
-  const totalPages = pagination?.totalPages ?? 1
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -368,9 +386,7 @@ function SearchPageContent() {
         <p className="mb-4 text-sm text-text-muted">
           {pagination.total === 0
             ? 'No tracks found'
-            : aiSearchActive
-              ? `Found ${pagination.total} matching track${pagination.total === 1 ? '' : 's'}`
-              : `Showing ${(currentPage - 1) * pagination.limit + 1}\u2013${Math.min(currentPage * pagination.limit, pagination.total)} of ${pagination.total} track${pagination.total === 1 ? '' : 's'}`}
+            : `${pagination.total} track${pagination.total === 1 ? '' : 's'} found`}
         </p>
       )}
 
@@ -426,92 +442,29 @@ function SearchPageContent() {
         </div>
       )}
 
-      {/* Pagination (only for traditional search) */}
-      {!loading && pagination && totalPages > 1 && !aiSearchActive && (
-        <nav className="mt-10 flex items-center justify-center gap-2" aria-label="Pagination">
-          {/* Previous */}
-          <button
-            type="button"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-default text-text-secondary transition-colors hover:border-border-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-40"
-            aria-label="Previous page"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10 12L6 8l4-4" />
-            </svg>
-          </button>
-
-          {/* Page numbers */}
-          {generatePageNumbers(currentPage, totalPages).map((pageNum, idx) =>
-            pageNum === null ? (
-              <span key={`ellipsis-${idx}`} className="px-1 text-sm text-text-muted">
-                &hellip;
-              </span>
-            ) : (
-              <button
-                key={pageNum}
-                type="button"
-                onClick={() => goToPage(pageNum)}
-                className={`flex h-9 min-w-[2.25rem] items-center justify-center rounded-lg border text-sm font-medium transition-colors ${
-                  pageNum === currentPage
-                    ? 'border-accent bg-accent text-white'
-                    : 'border-border-default text-text-secondary hover:border-border-hover hover:text-text-primary'
-                }`}
-                aria-current={pageNum === currentPage ? 'page' : undefined}
-              >
-                {pageNum}
-              </button>
-            ),
+      {/* Infinite scroll sentinel */}
+      {!loading && !aiSearchActive && hasMore && (
+        <div ref={sentinelRef} className="mt-8 flex items-center justify-center py-4">
+          {loadingMore && (
+            <div className="flex items-center gap-2 text-sm text-text-muted">
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Loading more tracks...
+            </div>
           )}
+        </div>
+      )}
 
-          {/* Next */}
-          <button
-            type="button"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-border-default text-text-secondary transition-colors hover:border-border-hover hover:text-text-primary disabled:pointer-events-none disabled:opacity-40"
-            aria-label="Next page"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 12l4-4-4-4" />
-            </svg>
-          </button>
-        </nav>
+      {/* End of results */}
+      {!loading && !hasMore && tracks.length > 0 && !aiSearchActive && pagination && pagination.total > pagination.limit && (
+        <p className="mt-8 text-center text-sm text-text-muted">
+          You&apos;ve seen all {pagination.total} tracks
+        </p>
       )}
     </div>
   )
-}
-
-/** Generates a compact page number sequence with ellipsis. */
-function generatePageNumbers(
-  current: number,
-  total: number,
-): (number | null)[] {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1)
-  }
-
-  const pages: (number | null)[] = [1]
-
-  if (current > 3) {
-    pages.push(null) // left ellipsis
-  }
-
-  const start = Math.max(2, current - 1)
-  const end = Math.min(total - 1, current + 1)
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i)
-  }
-
-  if (current < total - 2) {
-    pages.push(null) // right ellipsis
-  }
-
-  pages.push(total)
-
-  return pages
 }
 
 /** Empty state with popular tracks suggestion */
